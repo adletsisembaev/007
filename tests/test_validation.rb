@@ -103,3 +103,81 @@ class TestValidation < Minitest::Test
     assert strings.key?('error.geometry')
   end
 end
+
+class TestConstructionValidation < Minitest::Test
+  include TestSupport
+
+  def fields_for(category, overrides)
+    KCD::Validation.check(KCD::Settings.defaults(category).merge(overrides)).errors.map(&:field)
+  end
+
+  def test_groove_depth_limited_by_thickness
+    assert_includes fields_for('base', 'back_mode' => 'inset', 'back_groove' => true,
+                                       'groove_depth' => 14), 'groove_depth'
+    assert_empty fields_for('base', 'back_mode' => 'inset', 'back_groove' => true, 'groove_depth' => 13)
+  end
+
+  def test_groove_play_smaller_than_depth
+    assert_includes fields_for('wall', 'back_mode' => 'inset', 'back_groove' => true,
+                                       'groove_depth' => 6, 'groove_play' => 6), 'groove_play'
+  end
+
+  def test_back_inset_too_deep
+    assert_includes fields_for('wall', 'back_mode' => 'inset', 'back_inset' => 200, 'depth' => 250),
+                    'back_inset'
+  end
+
+  def test_rails_must_not_overlap
+    assert_includes fields_for('base', 'rail_width' => 300, 'depth' => 400), 'rail_width'
+  end
+
+  def test_too_many_shelves
+    assert_includes fields_for('wall', 'height' => 200, 'shelf_count' => 5), 'shelf_count'
+  end
+
+  def test_shelf_setback_too_large
+    assert_includes fields_for('wall', 'shelf_front_setback' => 280), 'shelf_front_setback'
+  end
+
+  def test_plinth_height_required_for_supports
+    assert_includes fields_for('base', 'plinth_height' => 0), 'plinth_height'
+    assert_empty fields_for('base', 'plinth_height' => 0, 'support_type' => 'none')
+  end
+
+  def test_leg_rules
+    assert_includes fields_for('base', 'leg_offset_side' => 10), 'leg_offset_side'
+    assert_includes fields_for('base', 'leg_offset_front' => 70), 'leg_offset_front'
+    assert_empty fields_for('base', 'leg_offset_front' => 70, 'support_type' => 'legs')
+    assert_includes fields_for('base', 'leg_offset_rear' => 5), 'leg_offset_rear'
+    assert_includes fields_for('base', 'width' => 120, 'thickness' => 16, 'leg_diameter' => 60,
+                                       'leg_offset_side' => 35), 'leg_offset_side'
+  end
+
+  def test_plinth_must_fit_depth
+    assert_includes fields_for('base', 'support_type' => 'plinth_box', 'plinth_setback' => 210,
+                                       'depth' => 240), 'plinth_setback'
+  end
+
+  def test_thin_material_behind_groove_is_a_warning
+    result = KCD::Validation.check(KCD::Settings.defaults('wall').merge(
+                                     'back_mode' => 'inset', 'back_groove' => true, 'back_inset' => 2
+                                   ))
+    assert result.ok?
+    assert_equal ['back_inset'], result.warnings.map(&:field)
+  end
+
+  def test_every_dialog_i18n_key_exists
+    html = File.read(File.join(KCD::PLUGIN_ROOT, 'dialogs', 'main.html')).gsub(/<!--.*?-->/m, '')
+    keys = html.scan(/data-i18n="([^"]+)"/).flatten.uniq
+    missing = keys - KCD::L10n.strings.keys
+    assert_empty missing
+  end
+
+  def test_every_schema_field_has_a_dialog_input_and_label
+    html = File.read(File.join(KCD::PLUGIN_ROOT, 'dialogs', 'main.html'))
+    KCD::Settings::FIELDS.each_key do |key|
+      assert_includes html, %(data-key="#{key}"), "no input for #{key}"
+      assert KCD::L10n.strings.key?("field.#{key}"), "no label for #{key}"
+    end
+  end
+end

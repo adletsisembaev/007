@@ -36,16 +36,50 @@ module KitchenCabinetDesigner
       'cabinet_type' => {
         type: :enum, values: CABINET_TYPE_IDS, default: 'single_door'
       },
+
+      # Dimensions
       'width' => { type: :mm, min: 100, max: 2400, default: 600 },
       'height' => { type: :mm, min: 100, max: 2800, default: 720 },
       'depth' => {
         type: :mm, min: 100, max: 1000, default: { 'base' => 560, 'wall' => 320 }
       },
+
+      # Carcass construction
       'thickness' => { type: :mm, min: 3, max: 50, default: 16 },
-      'back_thickness' => { type: :mm, min: 2, max: 25, default: 4 },
-      'plinth_height' => {
-        type: :mm, min: 0, max: 300, default: 100, categories: %w[base]
+      'top_construction' => {
+        type: :enum, values: %w[top_panel rails none], default: 'rails', categories: %w[base]
       },
+      'rail_width' => { type: :mm, min: 30, max: 300, default: 100, categories: %w[base] },
+      'back_mode' => { type: :enum, values: %w[overlay inset none], default: 'overlay' },
+      'back_thickness' => { type: :mm, min: 2, max: 25, default: 4 },
+      'back_inset' => { type: :mm, min: 0, max: 200, default: 10 },
+      'back_groove' => { type: :bool, default: false },
+      'groove_depth' => { type: :mm, min: 1, max: 30, default: 8 },
+      'groove_play' => { type: :mm, min: 0, max: 10, default: 1 },
+      'groove_extra_width' => { type: :mm, min: 0, max: 3, default: 0.5 },
+      'shelf_count' => { type: :int, min: 0, max: 10, default: 1 },
+      'shelf_front_setback' => { type: :mm, min: 0, max: 300, default: 0 },
+
+      # Base cabinet supports
+      'support_type' => {
+        type: :enum, values: %w[legs legs_with_plinth plinth_box none],
+        default: 'legs_with_plinth', categories: %w[base]
+      },
+      'plinth_height' => { type: :mm, min: 0, max: 300, default: 100, categories: %w[base] },
+      'plinth_setback' => { type: :mm, min: 0, max: 200, default: 50, categories: %w[base] },
+      'plinth_thickness' => { type: :mm, min: 3, max: 50, default: 16, categories: %w[base] },
+      'leg_diameter' => { type: :mm, min: 10, max: 120, default: 40, categories: %w[base] },
+      'leg_offset_side' => { type: :mm, min: 0, max: 300, default: 50, categories: %w[base] },
+      'leg_offset_front' => { type: :mm, min: 0, max: 500, default: 100, categories: %w[base] },
+      'leg_offset_rear' => { type: :mm, min: 0, max: 500, default: 60, categories: %w[base] },
+      'middle_legs_from' => { type: :mm, min: 0, max: 2400, default: 800, categories: %w[base] },
+
+      # Wall cabinet mounting
+      'hanging_rail' => { type: :bool, default: false, categories: %w[wall] },
+      'rail_height' => { type: :mm, min: 10, max: 200, default: 50, categories: %w[wall] },
+      'rail_thickness' => { type: :mm, min: 2, max: 50, default: 10, categories: %w[wall] },
+
+      # Placement
       'elevation' => {
         type: :mm, min: 0, max: 3000, default: 0, categories: %w[base]
       },
@@ -74,7 +108,11 @@ module KitchenCabinetDesigner
         spec = FIELDS.fetch(key.to_s)
         value = spec[:default]
         value = value.fetch(category.to_s) if value.is_a?(Hash)
-        spec[:type] == :mm ? value.to_f : value
+        case spec[:type]
+        when :mm then value.to_f
+        when :int then value.to_i
+        else value
+        end
       end
 
       # Complete default parameter set for a category (String keys).

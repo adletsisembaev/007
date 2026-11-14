@@ -41,6 +41,11 @@ module KitchenCabinetDesigner
     MIN_INTERIOR = 20.0
     # Minimum depth of the side panels after subtracting the back panel.
     MIN_PANEL_DEPTH = 50.0
+    # Material that must remain next to a groove.
+    MIN_GROOVE_WALL = 3.0
+    MIN_SHELF_SPACING = 30.0
+    MIN_PLINTH_HEIGHT = 10.0
+    EPSILON_MM = 1.0e-6
 
     class << self
       def check(raw)
@@ -161,24 +166,138 @@ module KitchenCabinetDesigner
         errors << Issue.new('cabinet_type', L10n.t('error.not_implemented', type: type_name))
       end
 
-      def check_construction(params, errors, _warnings)
-        t = params['thickness']
+      def check_construction(params, errors, warnings)
+        normalize_dependent(params)
+        check_carcass(params, errors)
+        return unless errors.empty?
 
+        m = Geometry::Layout.metrics(params)
+        check_back(params, m, errors, warnings)
+        check_rails(params, m, errors) if params['category'] == 'base'
+        check_shelves(params, m, errors)
+        check_supports(params, m, errors) if params['category'] == 'base'
+        check_hanging_rail(params, m, errors) if params['category'] == 'wall'
+      end
+
+      # Options that only make sense together with another option.
+      def normalize_dependent(params)
+        params['back_groove'] = false unless params['back_mode'] == 'inset'
+      end
+
+      def check_carcass(params, errors)
+        t = params['thickness']
         min_width = 2 * t + MIN_INTERIOR
         if params['width'] < min_width
           errors << Issue.new('width', L10n.t('error.width_thickness', min: fmt(min_width)))
         end
-
         min_height = 2 * t + MIN_INTERIOR
-        if params['height'] < min_height
-          errors << Issue.new('height', L10n.t('error.height_thickness', min: fmt(min_height)))
+        return unless params['height'] < min_height
+
+        errors << Issue.new('height', L10n.t('error.height_thickness', min: fmt(min_height)))
+      end
+
+      def check_back(params, m, errors, warnings)
+        if m.groove
+          max_depth = params['thickness'] - MIN_GROOVE_WALL
+          if params['groove_depth'] > max_depth
+            errors << Issue.new('groove_depth', L10n.t('error.groove_depth', max: fmt(max_depth)))
+          end
+          if params['groove_play'] >= params['groove_depth']
+            errors << Issue.new('groove_play', L10n.t('error.groove_play'))
+          end
+          inset = params['back_inset']
+          if inset.positive? && inset < MIN_GROOVE_WALL
+            warnings << Issue.new('back_inset', L10n.t('warn.groove_wall', value: fmt(inset)))
+          end
+        end
+        return unless m.usable_depth < MIN_PANEL_DEPTH
+
+        field = params['back_mode'] == 'inset' ? 'back_inset' : 'back_thickness'
+        errors << Issue.new(field, L10n.t('error.back_depth', min: fmt(MIN_PANEL_DEPTH)))
+      end
+
+      def check_rails(params, m, errors)
+        return unless params['top_construction'] == 'rails'
+
+        max = m.back_y0 / 2.0
+        return unless params['rail_width'] > max
+
+        errors << Issue.new('rail_width', L10n.t('error.rails_overlap', max: fmt(max)))
+      end
+
+      def check_shelves(params, m, errors)
+        count = params['shelf_count']
+        return if count.zero?
+
+        spacing = Geometry::CarcassLayout.shelf_spacing(m, count)
+        if spacing < MIN_SHELF_SPACING
+          errors << Issue.new('shelf_count', L10n.t('error.shelves', value: fmt(spacing),
+                                                                    min: fmt(MIN_SHELF_SPACING)))
+        end
+        return unless m.back_y0 - params['shelf_front_setback'] < MIN_PANEL_DEPTH
+
+        errors << Issue.new('shelf_front_setback', L10n.t('error.shelf_depth', min: fmt(MIN_PANEL_DEPTH)))
+      end
+
+      def check_supports(params, m, errors)
+        return if params['support_type'] == 'none'
+
+        if params['plinth_height'] < MIN_PLINTH_HEIGHT
+          errors << Issue.new('plinth_height', L10n.t('error.plinth_required', min: fmt(MIN_PLINTH_HEIGHT)))
+          return
         end
 
-        panel_depth = params['depth'] - params['back_thickness']
-        return unless panel_depth < MIN_PANEL_DEPTH
+        dp = m.panel_depth
+        plinth_front_end = 0.0
+        if Geometry::BaseCabinet.front_plinth?(params)
+          plinth_front_end = params['plinth_setback'] + params['plinth_thickness']
+          rear_limit = params['support_type'] == 'plinth_box' ? dp - params['plinth_thickness'] : dp
+          if plinth_front_end > rear_limit
+            errors << Issue.new('plinth_setback', L10n.t('error.plinth_depth'))
+            return
+          end
+        end
 
-        errors << Issue.new('back_thickness',
-                            L10n.t('error.back_depth', min: fmt(MIN_PANEL_DEPTH)))
+        check_legs(params, dp, plinth_front_end, errors) if Geometry::BaseCabinet.legs?(params)
+      end
+
+      def check_legs(params, panel_depth, plinth_front_end, errors)
+        r = params['leg_diameter'] / 2.0
+        w = params['width']
+        if params['leg_offset_side'] < r
+          errors << Issue.new('leg_offset_side', L10n.t('error.legs_side', min: fmt(r)))
+          return
+        end
+        gap_x = Geometry::BaseCabinet.middle_legs?(params) ? w / 2.0 - params['leg_offset_side'] : w - 2 * params['leg_offset_side']
+        if gap_x < 2 * r
+          errors << Issue.new('leg_offset_side', L10n.t('error.legs_width'))
+          return
+        end
+        front_min = plinth_front_end + r
+        if params['leg_offset_front'] < front_min
+          errors << Issue.new('leg_offset_front', L10n.t('error.legs_front', min: fmt(front_min)))
+          return
+        end
+        front_y = params['leg_offset_front']
+        rear_y = panel_depth - params['leg_offset_rear']
+        return unless params['leg_offset_rear'] < r || rear_y - front_y < 2 * r
+
+        errors << Issue.new('leg_offset_rear', L10n.t('error.legs_depth'))
+      end
+
+      def check_hanging_rail(params, m, errors)
+        return unless params['hanging_rail']
+
+        max_height = params['height'] - 2 * params['thickness']
+        if params['rail_height'] > max_height
+          errors << Issue.new('rail_height', L10n.t('error.rail_height', max: fmt(max_height)))
+        end
+        available = Geometry::WallCabinet.rail_space(params, m)
+        return unless params['rail_thickness'] > available + EPSILON_MM
+
+        errors << Issue.new('rail_thickness',
+                            L10n.t('error.rail_fit', need: fmt(params['rail_thickness']),
+                                                     available: fmt(available)))
       end
     end
   end

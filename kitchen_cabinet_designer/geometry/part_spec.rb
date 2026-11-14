@@ -114,8 +114,10 @@ module KitchenCabinetDesigner
             boxes: [bounds])
       end
 
-      # Removes consecutive duplicate points and a closing point equal to the
-      # first one. SketchUp's add_face fails on duplicate vertices.
+      # Removes consecutive duplicate points, a closing point equal to the
+      # first one and points lying on a straight line between their
+      # neighbours. SketchUp's add_face fails on duplicate vertices, and
+      # collinear vertices would leave stray edges on the extruded faces.
       def self.clean_outline(points)
         out = []
         points.each do |u, v|
@@ -123,7 +125,20 @@ module KitchenCabinetDesigner
           out << pt if out.empty? || !same_point?(out.last, pt)
         end
         out.pop if out.size > 1 && same_point?(out.first, out.last)
+        loop do
+          index = out.each_index.find do |i|
+            out.size > 3 && collinear?(out[i - 1], out[i], out[(i + 1) % out.size])
+          end
+          break unless index
+
+          out.delete_at(index)
+        end
         out
+      end
+
+      def self.collinear?(a, b, c)
+        cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+        cross.abs < EPSILON
       end
 
       def self.same_point?(a, b)

@@ -19,6 +19,8 @@ end
   validation
   geometry/part_spec
   geometry/carcass_layout
+  geometry/base_cabinet
+  geometry/wall_cabinet
   geometry/layout
 ].each { |file| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT, file) }
 

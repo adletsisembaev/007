@@ -258,3 +258,9 @@ button.primary {
 }
 
 [hidden] { display: none !important; }
+
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}

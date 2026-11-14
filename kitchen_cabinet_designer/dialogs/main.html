@@ -80,7 +80,34 @@
         </div>
         <div class="field-error" data-error-for="thickness"></div>
       </div>
+      <div class="row" data-categories="base">
+        <label for="f-top_construction" data-i18n="field.top_construction">Top construction</label>
+        <select id="f-top_construction" data-key="top_construction" data-type="enum">
+          <option value="rails" data-i18n="option.top.rails">Two rails (front + rear)</option>
+          <option value="top_panel" data-i18n="option.top.top_panel">Top panel</option>
+          <option value="none" data-i18n="option.top.none">None (open top)</option>
+        </select>
+        <div class="field-error" data-error-for="top_construction"></div>
+      </div>
+      <div class="row" data-categories="base" data-show-if="top_construction=rails">
+        <label for="f-rail_width" data-i18n="field.rail_width">Rail width</label>
+        <div class="input-unit">
+          <input id="f-rail_width" type="text" inputmode="decimal" autocomplete="off" data-key="rail_width" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.rail_width"></div>
+        <div class="field-error" data-error-for="rail_width"></div>
+      </div>
       <div class="row">
+        <label for="f-back_mode" data-i18n="field.back_mode">Back panel</label>
+        <select id="f-back_mode" data-key="back_mode" data-type="enum">
+          <option value="overlay" data-i18n="option.back.overlay">Overlay (applied to the rear)</option>
+          <option value="inset" data-i18n="option.back.inset">Inset (between panels)</option>
+          <option value="none" data-i18n="option.back.none">No back panel</option>
+        </select>
+        <div class="field-error" data-error-for="back_mode"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=overlay,inset">
         <label for="f-back_thickness" data-i18n="field.back_thickness">Back panel thickness</label>
         <div class="input-unit">
           <input id="f-back_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="back_thickness" data-type="mm">
@@ -88,7 +115,82 @@
         </div>
         <div class="field-error" data-error-for="back_thickness"></div>
       </div>
-      <div class="row" data-categories="base">
+      <div class="row" data-show-if="back_mode=inset">
+        <label for="f-back_inset" data-i18n="field.back_inset">Back panel position</label>
+        <div class="input-unit">
+          <input id="f-back_inset" type="text" inputmode="decimal" autocomplete="off" data-key="back_inset" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.back_inset"></div>
+        <div class="field-error" data-error-for="back_inset"></div>
+      </div>
+      <div class="row checkbox-row" data-show-if="back_mode=inset">
+        <label for="f-back_groove" data-i18n="field.back_groove">Back panel in groove</label>
+        <div><input id="f-back_groove" type="checkbox" data-key="back_groove" data-type="bool"></div>
+        <div class="field-error" data-error-for="back_groove"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=inset;back_groove=true">
+        <label for="f-groove_depth" data-i18n="field.groove_depth">Groove depth</label>
+        <div class="input-unit">
+          <input id="f-groove_depth" type="text" inputmode="decimal" autocomplete="off" data-key="groove_depth" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="groove_depth"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=inset;back_groove=true">
+        <label for="f-groove_play" data-i18n="field.groove_play">Groove play</label>
+        <div class="input-unit">
+          <input id="f-groove_play" type="text" inputmode="decimal" autocomplete="off" data-key="groove_play" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.groove_play"></div>
+        <div class="field-error" data-error-for="groove_play"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=inset;back_groove=true">
+        <label for="f-groove_extra_width" data-i18n="field.groove_extra_width">Groove extra width</label>
+        <div class="input-unit">
+          <input id="f-groove_extra_width" type="text" inputmode="decimal" autocomplete="off" data-key="groove_extra_width" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.groove_extra_width"></div>
+        <div class="field-error" data-error-for="groove_extra_width"></div>
+      </div>
+    </details>
+
+    <details class="section" open>
+      <summary data-i18n="section.shelves">Shelves</summary>
+      <div class="row">
+        <label for="f-shelf_count" data-i18n="field.shelf_count">Number of shelves</label>
+        <div class="input-unit">
+          <input id="f-shelf_count" type="text" inputmode="decimal" autocomplete="off" data-key="shelf_count" data-type="int">
+          <span class="unit"></span>
+        </div>
+        <div class="field-error" data-error-for="shelf_count"></div>
+      </div>
+      <div class="row">
+        <label for="f-shelf_front_setback" data-i18n="field.shelf_front_setback">Shelf front setback</label>
+        <div class="input-unit">
+          <input id="f-shelf_front_setback" type="text" inputmode="decimal" autocomplete="off" data-key="shelf_front_setback" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.shelf_front_setback"></div>
+        <div class="field-error" data-error-for="shelf_front_setback"></div>
+      </div>
+    </details>
+
+    <details class="section" open data-categories="base">
+      <summary data-i18n="section.supports">Plinth and Legs</summary>
+      <div class="row">
+        <label for="f-support_type" data-i18n="field.support_type">Supports</label>
+        <select id="f-support_type" data-key="support_type" data-type="enum">
+          <option value="legs_with_plinth" data-i18n="option.support.legs_with_plinth">Legs + plinth board</option>
+          <option value="legs" data-i18n="option.support.legs">Adjustable legs</option>
+          <option value="plinth_box" data-i18n="option.support.plinth_box">Plinth boards (no legs)</option>
+          <option value="none" data-i18n="option.support.none">None</option>
+        </select>
+        <div class="field-error" data-error-for="support_type"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth,plinth_box">
         <label for="f-plinth_height" data-i18n="field.plinth_height">Plinth / legs height</label>
         <div class="input-unit">
           <input id="f-plinth_height" type="text" inputmode="decimal" autocomplete="off" data-key="plinth_height" data-type="mm">
@@ -96,6 +198,93 @@
         </div>
         <div class="hint" data-i18n="hint.plinth_height"></div>
         <div class="field-error" data-error-for="plinth_height"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs_with_plinth,plinth_box">
+        <label for="f-plinth_setback" data-i18n="field.plinth_setback">Plinth setback</label>
+        <div class="input-unit">
+          <input id="f-plinth_setback" type="text" inputmode="decimal" autocomplete="off" data-key="plinth_setback" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.plinth_setback"></div>
+        <div class="field-error" data-error-for="plinth_setback"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs_with_plinth,plinth_box">
+        <label for="f-plinth_thickness" data-i18n="field.plinth_thickness">Plinth board thickness</label>
+        <div class="input-unit">
+          <input id="f-plinth_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="plinth_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="plinth_thickness"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth">
+        <label for="f-leg_diameter" data-i18n="field.leg_diameter">Leg diameter</label>
+        <div class="input-unit">
+          <input id="f-leg_diameter" type="text" inputmode="decimal" autocomplete="off" data-key="leg_diameter" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="leg_diameter"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth">
+        <label for="f-leg_offset_side" data-i18n="field.leg_offset_side">Leg offset from side</label>
+        <div class="input-unit">
+          <input id="f-leg_offset_side" type="text" inputmode="decimal" autocomplete="off" data-key="leg_offset_side" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.leg_offset"></div>
+        <div class="field-error" data-error-for="leg_offset_side"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth">
+        <label for="f-leg_offset_front" data-i18n="field.leg_offset_front">Leg offset from front</label>
+        <div class="input-unit">
+          <input id="f-leg_offset_front" type="text" inputmode="decimal" autocomplete="off" data-key="leg_offset_front" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.leg_offset"></div>
+        <div class="field-error" data-error-for="leg_offset_front"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth">
+        <label for="f-leg_offset_rear" data-i18n="field.leg_offset_rear">Leg offset from back</label>
+        <div class="input-unit">
+          <input id="f-leg_offset_rear" type="text" inputmode="decimal" autocomplete="off" data-key="leg_offset_rear" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.leg_offset"></div>
+        <div class="field-error" data-error-for="leg_offset_rear"></div>
+      </div>
+      <div class="row" data-show-if="support_type=legs,legs_with_plinth">
+        <label for="f-middle_legs_from" data-i18n="field.middle_legs_from">Middle legs from width</label>
+        <div class="input-unit">
+          <input id="f-middle_legs_from" type="text" inputmode="decimal" autocomplete="off" data-key="middle_legs_from" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.middle_legs_from"></div>
+        <div class="field-error" data-error-for="middle_legs_from"></div>
+      </div>
+    </details>
+
+    <details class="section" open data-categories="wall">
+      <summary data-i18n="section.mounting">Wall Mounting</summary>
+      <div class="row checkbox-row">
+        <label for="f-hanging_rail" data-i18n="field.hanging_rail">Hanging rail</label>
+        <div><input id="f-hanging_rail" type="checkbox" data-key="hanging_rail" data-type="bool"></div>
+        <div class="hint" data-i18n="hint.hanging_rail"></div>
+        <div class="field-error" data-error-for="hanging_rail"></div>
+      </div>
+      <div class="row" data-show-if="hanging_rail=true">
+        <label for="f-rail_height" data-i18n="field.rail_height">Rail height</label>
+        <div class="input-unit">
+          <input id="f-rail_height" type="text" inputmode="decimal" autocomplete="off" data-key="rail_height" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="rail_height"></div>
+      </div>
+      <div class="row" data-show-if="hanging_rail=true">
+        <label for="f-rail_thickness" data-i18n="field.rail_thickness">Rail thickness</label>
+        <div class="input-unit">
+          <input id="f-rail_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="rail_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="rail_thickness"></div>
       </div>
     </details>
 

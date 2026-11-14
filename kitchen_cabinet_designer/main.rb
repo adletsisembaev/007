@@ -11,6 +11,8 @@ module KitchenCabinetDesigner
     validation
     geometry/part_spec
     geometry/carcass_layout
+    geometry/base_cabinet
+    geometry/wall_cabinet
     geometry/layout
     sketchup/panel_builder
     sketchup/placement

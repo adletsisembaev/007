@@ -19,17 +19,22 @@ module KitchenCabinetDesigner
 
         # Z of the carcass bottom in local coordinates.
         def carcass_bottom(params)
-          params['category'] == 'base' ? params['plinth_height'].to_f : 0.0
+          params['category'] == 'base' ? BaseCabinet.support_height(params) : 0.0
+        end
+
+        # Carcass metrics (see CarcassLayout::Metrics) for either category.
+        def metrics(params)
+          params['category'] == 'base' ? BaseCabinet.metrics(params) : WallCabinet.metrics(params)
         end
 
         private
 
         def build_base(params)
-          CarcassLayout.build(params, carcass_bottom(params))
+          BaseCabinet.build(params)
         end
 
         def build_wall(params)
-          CarcassLayout.build(params, 0.0)
+          WallCabinet.build(params)
         end
 
         # Last line of defence before geometry is created: every part must
