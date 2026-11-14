@@ -13,7 +13,7 @@ require 'extensions.rb'
 module KitchenCabinetDesigner
   PLUGIN_ID   = 'kitchen_cabinet_designer'
   PLUGIN_NAME = 'Kitchen Cabinet Designer'
-  VERSION     = '0.5.0'
+  VERSION     = '1.0.0'
 
   # Paths may contain non-ASCII characters (e.g. Windows user names).
   loader_file = __FILE__.dup
