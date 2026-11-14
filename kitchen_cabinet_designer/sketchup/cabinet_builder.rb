@@ -44,7 +44,7 @@ module KitchenCabinetDesigner
 
         instance = run_operation(model, L10n.t('op.create')) do
           definition = model.definitions.add(unique_definition_name(model, params))
-          populate(definition, params, specs)
+          populate(model, definition, params, specs)
           inst = model.entities.add_instance(definition, Placement.for_new(params, reference))
           write_params(inst, params)
           inst
@@ -74,7 +74,7 @@ module KitchenCabinetDesigner
           targets = definition.instances.map { |inst| [inst, read_params(inst) || params] }
 
           definition.entities.clear!
-          populate(definition, params, specs)
+          populate(model, definition, params, specs)
           rename_definition(model, definition, params)
 
           targets.each do |inst, old_params|
@@ -134,8 +134,9 @@ module KitchenCabinetDesigner
         raise
       end
 
-      def populate(definition, params, specs)
-        PanelBuilder.render(definition.entities, specs, {})
+      def populate(model, definition, params, specs)
+        materials = Materials.resolve(model, params, specs.map(&:material).uniq)
+        PanelBuilder.render(definition.entities, specs, materials)
         definition.description = description_for(params)
         write_params(definition, params)
       end

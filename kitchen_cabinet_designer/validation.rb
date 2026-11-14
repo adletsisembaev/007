@@ -116,6 +116,8 @@ module KitchenCabinetDesigner
         when :enum then check_enum(key, value, spec, errors)
         when :bool then parse_bool(value)
         when :text then check_text(key, value, spec, errors)
+        when :material then check_material(key, value, spec, errors)
+        when :color then check_color(key, value, errors)
         end
       end
 
@@ -157,6 +159,38 @@ module KitchenCabinetDesigner
                                                               max: spec[:max_length]))
         nil
       end
+
+      MATERIAL_NAME_MAX = 100
+
+      # Empty names fall back to the default name; control characters are
+      # rejected because they cannot be shown in SketchUp's material browser.
+      def check_material(key, value, spec, errors)
+        name = value.to_s.strip
+        name = spec[:default] if name.empty?
+        if name.length > MATERIAL_NAME_MAX || name.match?(/[[:cntrl:]]/)
+          errors << Issue.new(key, L10n.t('error.material_name', max: MATERIAL_NAME_MAX))
+          return nil
+        end
+        name
+      end
+
+      def check_color(key, value, errors)
+        text = value.to_s.strip.downcase
+        return text if parse_color(text)
+
+        errors << Issue.new(key, L10n.t('error.color', field: field_label(key)))
+        nil
+      end
+
+      public
+
+      # "#rrggbb" -> [r, g, b] or nil.
+      def parse_color(text)
+        match = /\A#(\h{2})(\h{2})(\h{2})\z/.match(text.to_s.strip)
+        match && match.captures.map { |c| c.to_i(16) }
+      end
+
+      private
 
       def parse_bool(value)
         case value

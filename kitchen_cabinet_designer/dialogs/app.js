@@ -22,6 +22,7 @@
     category: 'base',
     valuesByCategory: {},
     editing: false,
+    materials: [],
     validateTimer: null,
     busyTimer: null
   };
@@ -148,6 +149,7 @@
       typeSelect.selectedIndex = 0;
     }
     updateVisibility();
+    syncMaterialColors();
     clearFieldErrors();
   }
 
@@ -179,15 +181,20 @@
     return allowed.indexOf(value) >= 0;
   }
 
+  // Recomputes visibility of every conditional element from scratch, so an
+  // element hidden earlier becomes visible again when its conditions hold.
   function updateVisibility() {
-    $all('[data-categories]').forEach(function (el) {
-      var cats = el.getAttribute('data-categories').split(/\s+/);
-      el.hidden = cats.indexOf(state.category) < 0;
-    });
-    $all('[data-show-if]').forEach(function (el) {
-      if (el.hidden) { return; }
-      var conditions = el.getAttribute('data-show-if').split(';');
-      el.hidden = !conditions.every(function (c) { return conditionHolds(c.trim()); });
+    $all('[data-categories], [data-show-if]').forEach(function (el) {
+      var visible = true;
+      var cats = el.getAttribute('data-categories');
+      if (cats) {
+        visible = cats.split(/\s+/).indexOf(state.category) >= 0;
+      }
+      var showIf = el.getAttribute('data-show-if');
+      if (visible && showIf) {
+        visible = showIf.split(';').every(function (c) { return conditionHolds(c.trim()); });
+      }
+      el.hidden = !visible;
     });
     $all('[data-category-button]').forEach(function (btn) {
       btn.setAttribute('aria-checked', String(btn.getAttribute('data-category-button') === state.category));
@@ -274,6 +281,112 @@
     }
   }
 
+  // ------------------------------------------------------------ materials
+
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var SLOT_COLOR_KEYS = {
+    carcass: 'carcass_color',
+    front: 'front_color',
+    back: 'back_color',
+    drawer_box: 'drawer_box_color',
+    hardware: 'hardware_color'
+  };
+
+  function findMaterial(name) {
+    for (var i = 0; i < state.materials.length; i++) {
+      if (state.materials[i].name === name) { return state.materials[i]; }
+    }
+    return null;
+  }
+
+  function renderMaterialList() {
+    var list = $('#kcd-materials');
+    if (!list) { return; }
+    list.innerHTML = '';
+    state.materials.forEach(function (material) {
+      var option = document.createElement('option');
+      option.value = material.name;
+      list.appendChild(option);
+    });
+    syncMaterialColors();
+  }
+
+  // Existing materials keep their own colour: show it and lock the picker.
+  function syncMaterialColors() {
+    $all('[data-color-key]').forEach(function (input) {
+      var picker = fieldByKey(input.getAttribute('data-color-key'));
+      if (!picker) { return; }
+      var existing = findMaterial(input.value.trim());
+      if (existing) {
+        if (!picker.disabled) { picker.setAttribute('data-own-color', picker.value); }
+        picker.value = existing.color;
+        picker.disabled = true;
+        picker.title = t('label.existing_material');
+      } else {
+        if (picker.disabled && picker.hasAttribute('data-own-color')) {
+          picker.value = picker.getAttribute('data-own-color');
+        }
+        picker.disabled = false;
+        picker.title = '';
+      }
+    });
+  }
+
+  // -------------------------------------------------------------- preview
+
+  function slotColor(slot) {
+    var key = SLOT_COLOR_KEYS[slot];
+    var el = key ? fieldByKey(key) : null;
+    return el && /^#[0-9a-fA-F]{6}$/.test(el.value) ? el.value : '#cccccc';
+  }
+
+  function clearPreview(caption) {
+    var svg = $('#preview');
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    $('#preview-caption').textContent = caption || '';
+  }
+
+  function renderPreview(preview, params) {
+    clearPreview();
+    var svg = $('#preview');
+    var b = preview.bounds;
+    var width = b[2] - b[0];
+    var height = b[3] - b[1];
+    var pad = Math.max(width, height) * 0.03;
+    svg.setAttribute('viewBox', [b[0] - pad, -b[3] - pad, width + 2 * pad, height + 2 * pad].join(' '));
+
+    var floor = document.createElementNS(SVG_NS, 'line');
+    floor.setAttribute('x1', b[0] - pad);
+    floor.setAttribute('x2', b[2] + pad);
+    floor.setAttribute('y1', 0);
+    floor.setAttribute('y2', 0);
+    floor.setAttribute('stroke', '#999999');
+    floor.setAttribute('stroke-dasharray', '4 3');
+    floor.setAttribute('vector-effect', 'non-scaling-stroke');
+    if (params.category === 'base') { svg.appendChild(floor); }
+
+    preview.rects.forEach(function (r) {
+      var rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('x', r.x0);
+      rect.setAttribute('y', -r.z1);
+      rect.setAttribute('width', Math.max(r.x1 - r.x0, 0.1));
+      rect.setAttribute('height', Math.max(r.z1 - r.z0, 0.1));
+      rect.setAttribute('fill', slotColor(r.slot));
+      rect.setAttribute('stroke', '#3a3f47');
+      rect.setAttribute('stroke-width', '1');
+      if (r.shape === 'cylinder') { rect.setAttribute('rx', (r.x1 - r.x0) / 4); }
+      var title = document.createElementNS(SVG_NS, 'title');
+      title.textContent = r.name;
+      rect.appendChild(title);
+      svg.appendChild(rect);
+    });
+
+    $('#preview-caption').textContent = t('label.preview', {
+      w: formatNumber(width),
+      h: formatNumber(height)
+    });
+  }
+
   // ------------------------------------------------------------ validation
 
   function quickCheck() {
@@ -297,9 +410,13 @@
       var errors = quickCheck();
       if (errors.length) {
         showFieldErrors(errors);
+        clearPreview(t('label.preview_unavailable'));
         return;
       }
-      if (inSketchUp()) { callRuby('validate', collectParams()); }
+      if (inSketchUp()) {
+        state.lastValidated = collectParams();
+        callRuby('validate', state.lastValidated);
+      }
     }, VALIDATE_DELAY_MS);
   }
 
@@ -340,6 +457,11 @@
     $('#btn-update').addEventListener('click', function () { submit('update_cabinet'); });
     $('#btn-load').addEventListener('click', function () { callRuby('load_selected'); });
     $('#btn-reset').addEventListener('click', resetDefaults);
+    $('#btn-refresh-materials').addEventListener('click', function () { callRuby('refresh_materials'); });
+    $all('[data-color-key]').forEach(function (input) {
+      input.addEventListener('input', syncMaterialColors);
+      input.addEventListener('change', syncMaterialColors);
+    });
     $('#btn-close').addEventListener('click', function () {
       if (!callRuby('close')) { window.close(); }
     });
@@ -358,10 +480,12 @@
       state.cabinetTypes = msg.cabinetTypes || [];
       state.defaults = msg.defaults || {};
       state.lastUsed = msg.lastUsed || {};
+      state.materials = msg.materials || [];
       applyStrings();
       $('#version').textContent = t('label.version', { version: msg.version || '' });
       state.category = 'base';
       fillForm(state.lastUsed.base || state.defaults.base || {});
+      renderMaterialList();
       hideStatus();
       scheduleValidation();
     },
@@ -373,6 +497,11 @@
     },
 
     validation: function (msg) {
+      if (msg.ok && msg.preview) {
+        renderPreview(msg.preview, state.lastValidated || collectParams());
+      } else {
+        clearPreview(t('label.preview_unavailable'));
+      }
       var unplaced = showFieldErrors(msg.errors);
       if (unplaced.length) {
         showStatus('error', t('msg.fix_errors'), unplaced);
@@ -391,6 +520,11 @@
         var unplaced = showFieldErrors(msg.errors);
         showStatus('error', msg.message, unplaced);
       }
+    },
+
+    materials: function (msg) {
+      state.materials = msg.materials || [];
+      renderMaterialList();
     },
 
     status: function (msg) {

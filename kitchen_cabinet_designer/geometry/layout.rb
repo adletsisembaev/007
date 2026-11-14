@@ -28,6 +28,20 @@ module KitchenCabinetDesigner
           params['category'] == 'base' ? BaseCabinet.metrics(params) : WallCabinet.metrics(params)
         end
 
+      # Front-view preview data for the dialog: one rectangle per part,
+      # projected on the XZ plane, farthest parts first.
+      def preview(params)
+        specs = build(params)
+        overall = specs.map(&:bounds).reduce(:union)
+        rects = specs.sort_by { |s| -s.bounds.y0 }.map do |spec|
+          b = spec.bounds
+          { 'name' => spec.name, 'slot' => spec.material.to_s,
+            'shape' => spec.shape_type.to_s,
+            'x0' => b.x0, 'z0' => b.z0, 'x1' => b.x1, 'z1' => b.z1 }
+        end
+        { 'bounds' => overall.to_a.values_at(0, 2, 3, 5), 'rects' => rects }
+      end
+
         # Doors or drawers depending on the cabinet type.
         def fronts(params, m)
           doors = DoorLayout.door_count(params['cabinet_type'])

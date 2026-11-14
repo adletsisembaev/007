@@ -10,7 +10,7 @@ module KitchenCabinetDesigner
   # field: init, params, validation, result, status.
   module DialogController
     CALLBACKS = %w[ready validate create_cabinet update_cabinet load_selected
-                   clear_target close].freeze
+                   clear_target refresh_materials close].freeze
 
     class << self
       # Opens the dialog (or brings it to front). With load_selection: true
@@ -63,6 +63,7 @@ module KitchenCabinetDesigner
         when 'update_cabinet' then on_update(parse_payload(payload))
         when 'load_selected'  then load_selected
         when 'clear_target'   then @edit_target = nil
+        when 'refresh_materials' then send_materials
         when 'close'          then @dialog&.close
         end
       end
@@ -108,13 +109,28 @@ module KitchenCabinetDesigner
               'implemented' => type[:implemented] }
           end,
           'defaults' => Settings::CATEGORIES.to_h { |c| [c, Settings.defaults(c)] },
-          'lastUsed' => Settings::CATEGORIES.to_h { |c| [c, Settings.last_used(c)] }
+          'lastUsed' => Settings::CATEGORIES.to_h { |c| [c, Settings.last_used(c)] },
+          'materials' => Materials.list(Sketchup.active_model)
         }
       end
 
+      # Validation answer, with front-view preview data when valid.
       def on_validate(params)
         result = Validation.check(params)
-        send_message(result.to_h.merge('type' => 'validation'))
+        message = result.to_h.merge('type' => 'validation')
+        if result.ok?
+          begin
+            message['preview'] = Geometry::Layout.preview(result.params)
+          rescue Geometry::LayoutError => e
+            message['ok'] = false
+            message['errors'] = [{ 'field' => nil, 'message' => L10n.t('error.geometry', message: e.message) }]
+          end
+        end
+        send_message(message)
+      end
+
+      def send_materials
+        send_message('type' => 'materials', 'materials' => Materials.list(Sketchup.active_model))
       end
 
       def on_create(params)
@@ -172,7 +188,10 @@ module KitchenCabinetDesigner
 
       def send_result(outcome)
         send_message(outcome.to_h.merge('type' => 'result'))
-        send_target(@edit_target) if outcome.ok
+        return unless outcome.ok
+
+        send_target(@edit_target)
+        send_materials
       end
 
       def send_target(instance)

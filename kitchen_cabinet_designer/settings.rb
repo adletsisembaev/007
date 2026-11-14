@@ -27,7 +27,8 @@ module KitchenCabinetDesigner
     CABINET_TYPE_IDS = CABINET_TYPES.map { |type| type[:id] }.freeze
 
     # Field schema.
-    #   type:       :mm (Float, millimetres), :enum, :bool, :int, :text
+    #   type:       :mm (Float, millimetres), :enum, :bool, :int, :text,
+    #               :material (material name), :color ("#rrggbb")
     #   min/max:    inclusive range for :mm and :int
     #   values:     allowed values for :enum
     #   default:    a value, or a Hash keyed by category
@@ -104,6 +105,19 @@ module KitchenCabinetDesigner
       'hanging_rail' => { type: :bool, default: false, categories: %w[wall] },
       'rail_height' => { type: :mm, min: 10, max: 200, default: 50, categories: %w[wall] },
       'rail_thickness' => { type: :mm, min: 2, max: 50, default: 10, categories: %w[wall] },
+
+      # Materials: an existing model material is used as-is; otherwise a
+      # material with this name is created with the given colour.
+      'carcass_material' => { type: :material, default: 'KCD Carcass' },
+      'carcass_color' => { type: :color, default: '#ede9e2' },
+      'front_material' => { type: :material, default: 'KCD Front' },
+      'front_color' => { type: :color, default: '#c9a46b' },
+      'back_material' => { type: :material, default: 'KCD Back' },
+      'back_color' => { type: :color, default: '#f4f1ea' },
+      'drawer_box_material' => { type: :material, default: 'KCD Drawer Box', categories: %w[base] },
+      'drawer_box_color' => { type: :color, default: '#e2dacb', categories: %w[base] },
+      'hardware_material' => { type: :material, default: 'KCD Hardware' },
+      'hardware_color' => { type: :color, default: '#6b7078' },
 
       # Placement
       'elevation' => {

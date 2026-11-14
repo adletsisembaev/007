@@ -16,6 +16,7 @@ module KitchenCabinetDesigner
     geometry/door_layout
     geometry/drawer_layout
     geometry/layout
+    sketchup/materials
     sketchup/panel_builder
     sketchup/placement
     sketchup/cabinet_builder
