@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kitchen Cabinet Designer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!--
+    Form conventions (read by app.js):
+      data-key="name"          parameter sent to Ruby
+      data-type="mm|enum|bool" value type
+      data-i18n="key"          element text taken from locales/<code>.json
+      data-categories="base"   row shown only for the listed categories
+      data-show-if="k=v1,v2"   row shown only when field k has one of the values
+                               (several conditions separated by ";")
+      data-error-for="name"    container for the field's validation message
+  -->
+  <header class="app-header">
+    <h1 data-i18n="dialog.title">Kitchen Cabinet Designer</h1>
+    <div id="edit-target" class="edit-target" hidden>
+      <span id="edit-target-label"></span>
+      <button type="button" id="btn-stop-editing" class="link-button" data-i18n="button.stop_editing">Stop editing</button>
+    </div>
+  </header>
+
+  <main id="form" class="form">
+    <details class="section" open>
+      <summary data-i18n="section.type">Cabinet Type</summary>
+      <div class="segmented" role="radiogroup" aria-label="Category">
+        <button type="button" role="radio" data-category-button="base" data-i18n="category.base">Base cabinet</button>
+        <button type="button" role="radio" data-category-button="wall" data-i18n="category.wall">Wall cabinet</button>
+      </div>
+      <div class="row">
+        <label for="f-cabinet_type" data-i18n="field.cabinet_type">Cabinet type</label>
+        <select id="f-cabinet_type" data-key="cabinet_type" data-type="enum"></select>
+        <div class="field-error" data-error-for="cabinet_type"></div>
+      </div>
+    </details>
+
+    <details class="section" open>
+      <summary data-i18n="section.dimensions">Dimensions</summary>
+      <div class="row">
+        <label for="f-width" data-i18n="field.width">Width</label>
+        <div class="input-unit">
+          <input id="f-width" type="text" inputmode="decimal" autocomplete="off" data-key="width" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="width"></div>
+      </div>
+      <div class="row">
+        <label for="f-height" data-i18n="field.height">Height</label>
+        <div class="input-unit">
+          <input id="f-height" type="text" inputmode="decimal" autocomplete="off" data-key="height" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-categories="base" data-i18n="hint.height_base"></div>
+        <div class="hint" data-categories="wall" data-i18n="hint.height_wall"></div>
+        <div class="field-error" data-error-for="height"></div>
+      </div>
+      <div class="row">
+        <label for="f-depth" data-i18n="field.depth">Depth</label>
+        <div class="input-unit">
+          <input id="f-depth" type="text" inputmode="decimal" autocomplete="off" data-key="depth" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.depth"></div>
+        <div class="field-error" data-error-for="depth"></div>
+      </div>
+    </details>
+
+    <details class="section" open>
+      <summary data-i18n="section.construction">Construction Settings</summary>
+      <div class="row">
+        <label for="f-thickness" data-i18n="field.thickness">Panel thickness</label>
+        <div class="input-unit">
+          <input id="f-thickness" type="text" inputmode="decimal" autocomplete="off" data-key="thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="thickness"></div>
+      </div>
+      <div class="row">
+        <label for="f-back_thickness" data-i18n="field.back_thickness">Back panel thickness</label>
+        <div class="input-unit">
+          <input id="f-back_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="back_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="back_thickness"></div>
+      </div>
+      <div class="row" data-categories="base">
+        <label for="f-plinth_height" data-i18n="field.plinth_height">Plinth / legs height</label>
+        <div class="input-unit">
+          <input id="f-plinth_height" type="text" inputmode="decimal" autocomplete="off" data-key="plinth_height" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.plinth_height"></div>
+        <div class="field-error" data-error-for="plinth_height"></div>
+      </div>
+    </details>
+
+    <details class="section" open>
+      <summary data-i18n="section.placement">Placement</summary>
+      <div class="row" data-categories="base">
+        <label for="f-elevation" data-i18n="field.elevation">Cabinet elevation</label>
+        <div class="input-unit">
+          <input id="f-elevation" type="text" inputmode="decimal" autocomplete="off" data-key="elevation" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.elevation"></div>
+        <div class="field-error" data-error-for="elevation"></div>
+      </div>
+      <div class="row" data-categories="wall">
+        <label for="f-mount_height" data-i18n="field.mount_height">Mounting height</label>
+        <div class="input-unit">
+          <input id="f-mount_height" type="text" inputmode="decimal" autocomplete="off" data-key="mount_height" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.mount_height"></div>
+        <div class="field-error" data-error-for="mount_height"></div>
+      </div>
+      <div class="row">
+        <label for="f-wall_gap" data-i18n="field.wall_gap">Distance from wall</label>
+        <div class="input-unit">
+          <input id="f-wall_gap" type="text" inputmode="decimal" autocomplete="off" data-key="wall_gap" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.wall_gap"></div>
+        <div class="field-error" data-error-for="wall_gap"></div>
+      </div>
+    </details>
+  </main>
+
+  <footer class="app-footer">
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+    <div class="buttons">
+      <button type="button" id="btn-create" class="primary" data-i18n="button.create">Create Cabinet</button>
+      <button type="button" id="btn-update" data-i18n="button.update" disabled>Update Selected</button>
+    </div>
+    <div class="buttons secondary-buttons">
+      <button type="button" id="btn-load" data-i18n="button.load_selected">Load Selected</button>
+      <button type="button" id="btn-reset" data-i18n="button.reset">Reset Defaults</button>
+      <button type="button" id="btn-close" data-i18n="button.close">Close</button>
+    </div>
+    <div id="version" class="version"></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

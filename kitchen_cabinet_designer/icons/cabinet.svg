@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Kitchen Cabinet Designer toolbar icon (source). Base cabinet with countertop,
+     two doors and a plinth. Designed on a 32x32 grid; scales down to 24x24. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- countertop -->
+  <rect x="2" y="5" width="28" height="3" rx="0.5" fill="#5b6472"/>
+  <!-- carcass -->
+  <rect x="4" y="8" width="24" height="18" fill="#f2ede4" stroke="#3a3f47" stroke-width="1.2"/>
+  <!-- doors -->
+  <rect x="5.5" y="9.5" width="10" height="15" fill="#c9a46b" stroke="#3a3f47" stroke-width="0.8"/>
+  <rect x="16.5" y="9.5" width="10" height="15" fill="#c9a46b" stroke="#3a3f47" stroke-width="0.8"/>
+  <!-- handles -->
+  <rect x="13.2" y="12" width="1.2" height="5" rx="0.5" fill="#3a3f47"/>
+  <rect x="17.6" y="12" width="1.2" height="5" rx="0.5" fill="#3a3f47"/>
+  <!-- plinth -->
+  <rect x="5" y="26" width="22" height="3" fill="#3a3f47"/>
+</svg>

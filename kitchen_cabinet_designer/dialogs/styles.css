@@ -1,0 +1,260 @@
+/* Kitchen Cabinet Designer - dialog styles. No external resources. */
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --text: #1d2330;
+  --muted: #667085;
+  --border: #d0d5dd;
+  --accent: #1f6feb;
+  --accent-text: #ffffff;
+  --error: #c62828;
+  --error-bg: #fdecea;
+  --warn: #8a5a00;
+  --warn-bg: #fff4e0;
+  --ok: #1b7f3b;
+  --ok-bg: #e8f5ec;
+  --radius: 6px;
+  font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e2127;
+    --surface: #282c34;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --border: #3d4350;
+    --accent: #4c8dff;
+    --error: #ff8a80;
+    --error-bg: #3b2224;
+    --warn: #ffcc80;
+    --warn-bg: #3a3020;
+    --ok: #81c995;
+    --ok-bg: #1f3326;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  padding: 10px 14px 6px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.edit-target {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.form {
+  flex: 1;
+  padding: 0 14px 10px;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  padding: 0 10px;
+}
+
+.section > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 0;
+  user-select: none;
+}
+
+.section[open] > summary {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 44% 1fr;
+  align-items: center;
+  column-gap: 8px;
+  margin-bottom: 8px;
+}
+
+.row > label {
+  color: var(--text);
+}
+
+.row > .hint,
+.row > .field-error {
+  grid-column: 2;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.field-error {
+  color: var(--error);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.field-error:empty { display: none; }
+
+.input-unit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unit {
+  color: var(--muted);
+  min-width: 22px;
+}
+
+input[type="text"],
+select {
+  width: 100%;
+  padding: 4px 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+input[type="text"] { text-align: right; }
+
+input:focus, select:focus, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.invalid input,
+.invalid select {
+  border-color: var(--error);
+  background: var(--error-bg);
+}
+
+.segmented {
+  display: flex;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.segmented button + button { border-left: 1px solid var(--border); }
+
+.segmented button[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+button {
+  font: inherit;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.app-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px 10px;
+}
+
+.buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.buttons > button { flex: 1; }
+
+.secondary-buttons { margin-top: 6px; }
+
+.status {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  white-space: pre-line;
+}
+
+.status.info { background: var(--surface); border: 1px solid var(--border); }
+.status.ok { background: var(--ok-bg); color: var(--ok); }
+.status.error { background: var(--error-bg); color: var(--error); }
+.status.warn { background: var(--warn-bg); color: var(--warn); }
+
+.status ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.version {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+[hidden] { display: none !important; }
