@@ -51,8 +51,11 @@ module KitchenCabinetDesigner
         end
 
         Settings.save_last_used(params)
-        model.selection.clear
-        model.selection.add(instance)
+        # Selecting outside the active edit context would be confusing.
+        if model.active_path.nil?
+          model.selection.clear
+          model.selection.add(instance)
+        end
         Outcome.new(ok: true, message: L10n.t('msg.created', name: instance.definition.name),
                     warnings: validation.warnings, instance: instance)
       end

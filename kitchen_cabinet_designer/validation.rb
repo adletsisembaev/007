@@ -282,7 +282,7 @@ module KitchenCabinetDesigner
           errors << Issue.new('shelf_count', L10n.t('error.shelves', value: fmt(spacing),
                                                                     min: fmt(MIN_SHELF_SPACING)))
         end
-        return unless m.back_y0 - params['shelf_front_setback'] < MIN_PANEL_DEPTH
+        return unless m.back_y0 - Geometry::CarcassLayout.shelf_front(params) < MIN_PANEL_DEPTH
 
         errors << Issue.new('shelf_front_setback', L10n.t('error.shelf_depth', min: fmt(MIN_PANEL_DEPTH)))
       end
@@ -353,15 +353,10 @@ module KitchenCabinetDesigner
         end
       end
 
-      def check_inset_fronts(params, m, zone, errors)
-        if zone.y1 > m.usable_depth - MIN_PANEL_DEPTH
-          errors << Issue.new('inset_setback', L10n.t('error.inset_depth'))
-        end
-        shelves = Geometry::CarcassLayout.effective_shelf_count(params)
-        return unless shelves.positive? && params['shelf_front_setback'] < zone.y1 - EPSILON_MM
+      def check_inset_fronts(_params, m, zone, errors)
+        return unless zone.y1 > m.usable_depth - MIN_PANEL_DEPTH
 
-        errors << Issue.new('shelf_front_setback',
-                            L10n.t('error.inset_shelves', min: fmt(zone.y1)))
+        errors << Issue.new('inset_setback', L10n.t('error.inset_depth'))
       end
 
       def check_doors(params, m, count, errors, warnings)

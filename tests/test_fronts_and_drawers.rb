@@ -45,6 +45,12 @@ class TestFrontsAndDrawers < Minitest::Test
     assert_no_overlaps(parts)
   end
 
+  def test_shelves_start_behind_inset_doors
+    parts = build('base', 'front_mount' => 'inset', 'inset_setback' => 3, 'shelf_front_setback' => 2)
+    assert_in_delta 3.0 + 18.0 + 2.0, part(parts, 'SHELF_1').bounds.y0, 1e-9
+    assert_no_overlaps(parts)
+  end
+
   def test_front_extension
     door = part(build('wall', 'front_extend_bottom' => 20, 'front_extend_top' => 5), 'DOOR').bounds
     assert_equal [-19.0, 724.0], [door.z0, door.z1]
@@ -58,8 +64,7 @@ class TestFrontsAndDrawers < Minitest::Test
   def test_fronts_validation
     assert_equal ['front_extend_bottom'],
                  errors_for('base', 'front_extend_bottom' => 150).map(&:field)
-    assert_equal ['shelf_front_setback'],
-                 errors_for('base', 'front_mount' => 'inset').map(&:field)
+    assert_empty errors_for('base', 'front_mount' => 'inset')
     assert_empty errors_for('wall', 'front_extend_bottom' => 150)
     result = KCD::Validation.check(KCD::Settings.defaults('base').merge('width' => 900))
     assert result.ok?

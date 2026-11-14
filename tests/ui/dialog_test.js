@@ -69,5 +69,6 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
   console.log(JSON.stringify({rects1, rects2, shelvesVisible, drawersVisible, err, locked, wallDepth, wallTypes, plinthVisible, status,
     createdKeys: Object.keys(created).length, createdCategory: created.category, sentPlinth: 'plinth_height' in created}, null, 1));
   console.log(logs.join('\n'));
+  if (logs.some(l => l.startsWith('PAGEERROR') || l.startsWith('error'))) { process.exitCode = 1; }
   await browser.close(); rb.stdin.end();
 })();

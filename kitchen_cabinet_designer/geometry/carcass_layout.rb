@@ -97,6 +97,16 @@ module KitchenCabinetDesigner
           params['cabinet_type'] == 'drawers' ? 0 : params['shelf_count'].to_i
         end
 
+        # Y of the shelf front edge. With inset doors the setback is measured
+        # from the back face of the doors, so shelves never hit them.
+        def shelf_front(params)
+          y = params['shelf_front_setback'].to_f
+          if params['front_mount'] == 'inset' && DoorLayout.door_count(params['cabinet_type'])
+            y += params['inset_setback'].to_f + params['front_thickness'].to_f
+          end
+          y
+        end
+
         # Shelf spacing (clear gap between shelves / panels) for n shelves.
         def shelf_spacing(m, count)
           clear = m.interior_z1 - m.interior_z0
@@ -210,7 +220,7 @@ module KitchenCabinetDesigner
 
           t = m.thickness
           spacing = shelf_spacing(m, count)
-          y0 = params['shelf_front_setback']
+          y0 = shelf_front(params)
           y1 = m.back_y0
           (1..count).map do |k|
             z0 = m.interior_z0 + k * spacing + (k - 1) * t

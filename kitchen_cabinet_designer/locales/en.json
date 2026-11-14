@@ -114,7 +114,7 @@
   "hint.groove_play": "Clearance between the back panel edge and the bottom of the groove.",
   "hint.groove_extra_width": "Groove width = back thickness + this value.",
   "hint.rail_width": "Depth of each horizontal rail.",
-  "hint.shelf_front_setback": "Distance from the carcass front edge to the shelf front edge.",
+  "hint.shelf_front_setback": "Distance from the carcass front edge (or from the back of inset doors) to the shelf front edge.",
   "hint.plinth_setback": "Distance from the carcass front edge to the plinth board.",
   "hint.leg_offset": "Measured to the leg centre.",
   "hint.middle_legs_from": "Adds a middle pair of legs for cabinets at least this wide. 0 = never.",
@@ -169,7 +169,6 @@
   "error.text_length": "%{field} is too long (maximum %{max} characters).",
   "error.front_below_floor": "The extended fronts would go below the floor.",
   "error.inset_depth": "Inset fronts are set back too far into the carcass.",
-  "error.inset_shelves": "Shelves collide with the inset fronts: the shelf front setback must be at least %{min} mm.",
   "error.door_small": "Doors would be smaller than %{min} mm. Increase the cabinet size or reduce the gaps.",
   "warn.wide_door": "A single door %{width} mm wide is unusually wide; consider two doors.",
   "error.drawer_heights_format": "Front heights: enter numbers separated by \";\" (e.g. 140; 0; 0).",
@@ -203,5 +202,6 @@
   "label.preview_unavailable": "Preview unavailable: correct the highlighted fields.",
   "label.existing_material": "Existing material - colour taken from the model.",
   "error.material_name": "Material name must be at most %{max} characters and contain no control characters.",
-  "error.color": "%{field}: choose a colour in #rrggbb format."
+  "error.color": "%{field}: choose a colour in #rrggbb format.",
+  "msg.close_edit_context": "Close the cabinet's edit context first (press Esc or click outside it), then press Update Selected again."
 }

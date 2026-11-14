@@ -61,6 +61,23 @@ module KitchenCabinetDesigner
           WallCabinet.build(params)
         end
 
+        # SketchUp merges vertices closer than about 0.025 mm, so outline
+        # edges must be clearly longer than that.
+        MIN_EDGE = 0.1
+
+        def verify_outline!(part)
+          return unless part.shape_type == :profile
+
+          points = part.shape[:points]
+          points.each_with_index do |(u0, v0), i|
+            u1, v1 = points[(i + 1) % points.size]
+            next if Math.hypot(u1 - u0, v1 - v0) >= MIN_EDGE
+
+            raise LayoutError, "#{part.name} has an edge shorter than #{MIN_EDGE} mm; " \
+                               'adjust the groove settings'
+          end
+        end
+
         # Last line of defence before geometry is created: every part must
         # have a real thickness and a unique name inside its container.
         def verify!(parts)
@@ -69,6 +86,7 @@ module KitchenCabinetDesigner
 
             raise LayoutError, "#{part.name} is thinner than 0.5 mm (#{part.min_size.round(3)} mm)"
           end
+          parts.each { |part| verify_outline!(part) }
           duplicates = parts.group_by { |p| [p.container, p.name] }.select { |_, v| v.size > 1 }
           return if duplicates.empty?
 

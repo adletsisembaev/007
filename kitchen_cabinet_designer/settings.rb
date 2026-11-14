@@ -192,15 +192,19 @@ module KitchenCabinetDesigner
         return nil unless defined?(Sketchup) && Sketchup.respond_to?(:read_default)
 
         raw = Sketchup.read_default(PREFERENCES_SECTION, name, nil)
-        raw.is_a?(String) && !raw.empty? ? JSON.parse(raw) : nil
-      rescue JSON::ParserError
+        return nil unless raw.is_a?(String) && !raw.empty?
+
+        JSON.parse(raw.start_with?('{') ? raw : raw.unpack1('m0').force_encoding('UTF-8'))
+      rescue JSON::ParserError, ArgumentError
         nil
       end
 
       def write_preference(name, value)
         return unless defined?(Sketchup) && Sketchup.respond_to?(:write_default)
 
-        Sketchup.write_default(PREFERENCES_SECTION, name, JSON.generate(value))
+        # Base64 keeps quotes and non-ASCII text intact in every SketchUp
+        # preferences backend.
+        Sketchup.write_default(PREFERENCES_SECTION, name, [JSON.generate(value)].pack('m0'))
       end
     end
   end

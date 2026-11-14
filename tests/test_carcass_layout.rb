@@ -148,6 +148,12 @@ class TestCarcassLayout < Minitest::Test
     end
   end
 
+  def test_tiny_groove_edges_are_rejected_before_building
+    params = valid_params('wall', 'back_mode' => 'inset', 'back_groove' => true,
+                                  'back_inset' => 0.05)
+    assert_raises(KCD::Geometry::LayoutError) { KCD::Geometry::Layout.build(params) }
+  end
+
   # The outline actually drawn in SketchUp must describe the same solid as
   # the box decomposition used by the overlap tests.
   def test_profile_outlines_match_box_decomposition

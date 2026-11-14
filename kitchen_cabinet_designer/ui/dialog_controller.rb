@@ -149,6 +149,11 @@ module KitchenCabinetDesigner
           return
         end
 
+        if editing_inside?(model, target)
+          send_status('error', L10n.t('msg.close_edit_context'))
+          return
+        end
+
         scope = ask_update_scope(target)
         if scope.nil?
           send_status('info', L10n.t('msg.cancelled'))
@@ -157,6 +162,15 @@ module KitchenCabinetDesigner
 
         outcome = CabinetBuilder.update(model, target, params, scope: scope)
         send_result(outcome)
+      end
+
+      # True if the user is currently editing inside this cabinet (or another
+      # copy of it). Its geometry must not be regenerated in that state.
+      def editing_inside?(model, instance)
+        path = model.active_path
+        return false if path.nil?
+
+        path.any? { |e| e.respond_to?(:definition) && e.definition == instance.definition }
       end
 
       # Asks whether all copies of a shared definition should be updated.
