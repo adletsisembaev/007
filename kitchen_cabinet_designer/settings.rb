@@ -27,7 +27,7 @@ module KitchenCabinetDesigner
     CABINET_TYPE_IDS = CABINET_TYPES.map { |type| type[:id] }.freeze
 
     # Field schema.
-    #   type:       :mm (Float, millimetres), :enum, :bool, :int
+    #   type:       :mm (Float, millimetres), :enum, :bool, :int, :text
     #   min/max:    inclusive range for :mm and :int
     #   values:     allowed values for :enum
     #   default:    a value, or a Hash keyed by category
@@ -59,6 +59,32 @@ module KitchenCabinetDesigner
       'groove_extra_width' => { type: :mm, min: 0, max: 3, default: 0.5 },
       'shelf_count' => { type: :int, min: 0, max: 10, default: 1 },
       'shelf_front_setback' => { type: :mm, min: 0, max: 300, default: 0 },
+
+      # Doors and fronts
+      'front_mount' => { type: :enum, values: %w[overlay inset], default: 'overlay' },
+      'front_thickness' => { type: :mm, min: 3, max: 50, default: 18 },
+      'front_gap' => { type: :mm, min: 0, max: 20, default: 2 },
+      'edge_gap_left' => { type: :mm, min: 0, max: 20, default: 1 },
+      'edge_gap_right' => { type: :mm, min: 0, max: 20, default: 1 },
+      'edge_gap_top' => { type: :mm, min: 0, max: 20, default: 1 },
+      'edge_gap_bottom' => { type: :mm, min: 0, max: 20, default: 1 },
+      'front_extend_top' => { type: :mm, min: 0, max: 200, default: 0 },
+      'front_extend_bottom' => { type: :mm, min: 0, max: 200, default: 0 },
+      'inset_gap' => { type: :mm, min: 0, max: 20, default: 2 },
+      'inset_setback' => { type: :mm, min: 0, max: 50, default: 0 },
+
+      # Drawers (base cabinets only)
+      'drawer_count' => { type: :int, min: 1, max: 8, default: 3, categories: %w[base] },
+      'drawer_heights' => { type: :text, max_length: 200, default: '', categories: %w[base] },
+      'drawer_box_height' => { type: :mm, min: 0, max: 600, default: 0, categories: %w[base] },
+      'drawer_box_depth' => { type: :mm, min: 0, max: 1000, default: 0, categories: %w[base] },
+      'drawer_side_thickness' => { type: :mm, min: 3, max: 30, default: 16, categories: %w[base] },
+      'drawer_bottom_thickness' => { type: :mm, min: 2, max: 25, default: 4, categories: %w[base] },
+      'slide_clearance' => { type: :mm, min: 0, max: 50, default: 13, categories: %w[base] },
+      'slide_depth_clearance' => { type: :mm, min: 0, max: 200, default: 30, categories: %w[base] },
+      'drawer_front_clearance' => { type: :mm, min: 0, max: 50, default: 2, categories: %w[base] },
+      'drawer_bottom_clearance' => { type: :mm, min: 0, max: 100, default: 15, categories: %w[base] },
+      'drawer_top_clearance' => { type: :mm, min: 0, max: 100, default: 30, categories: %w[base] },
 
       # Base cabinet supports
       'support_type' => {

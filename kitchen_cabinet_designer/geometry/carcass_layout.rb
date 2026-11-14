@@ -92,6 +92,11 @@ module KitchenCabinetDesigner
           parts
         end
 
+        # Drawer cabinets have no shelves: the drawers fill the interior.
+        def effective_shelf_count(params)
+          params['cabinet_type'] == 'drawers' ? 0 : params['shelf_count'].to_i
+        end
+
         # Shelf spacing (clear gap between shelves / panels) for n shelves.
         def shelf_spacing(m, count)
           clear = m.interior_z1 - m.interior_z0
@@ -200,7 +205,7 @@ module KitchenCabinetDesigner
         end
 
         def shelves(m, params)
-          count = params['shelf_count'].to_i
+          count = effective_shelf_count(params)
           return [] if count <= 0
 
           t = m.thickness

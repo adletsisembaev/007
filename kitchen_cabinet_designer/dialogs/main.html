@@ -157,7 +157,7 @@
       </div>
     </details>
 
-    <details class="section" open>
+    <details class="section" open data-show-if="cabinet_type=single_door,two_doors,open,corner,sink,appliance,custom">
       <summary data-i18n="section.shelves">Shelves</summary>
       <div class="row">
         <label for="f-shelf_count" data-i18n="field.shelf_count">Number of shelves</label>
@@ -175,6 +175,197 @@
         </div>
         <div class="hint" data-i18n="hint.shelf_front_setback"></div>
         <div class="field-error" data-error-for="shelf_front_setback"></div>
+      </div>
+    </details>
+
+    <details class="section" open data-show-if="cabinet_type=single_door,two_doors,drawers">
+      <summary data-i18n="section.fronts">Doors and Fronts</summary>
+      <div class="row">
+        <label for="f-front_mount" data-i18n="field.front_mount">Front mounting</label>
+        <select id="f-front_mount" data-key="front_mount" data-type="enum">
+          <option value="overlay" data-i18n="option.front.overlay">Overlay (in front of the carcass)</option>
+          <option value="inset" data-i18n="option.front.inset">Inset (inside the carcass opening)</option>
+        </select>
+        <div class="field-error" data-error-for="front_mount"></div>
+      </div>
+      <div class="row">
+        <label for="f-front_thickness" data-i18n="field.front_thickness">Front thickness</label>
+        <div class="input-unit">
+          <input id="f-front_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="front_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="front_thickness"></div>
+      </div>
+      <div class="row">
+        <label for="f-front_gap" data-i18n="field.front_gap">Gap between fronts</label>
+        <div class="input-unit">
+          <input id="f-front_gap" type="text" inputmode="decimal" autocomplete="off" data-key="front_gap" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="front_gap"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-edge_gap_left" data-i18n="field.edge_gap_left">Edge gap left</label>
+        <div class="input-unit">
+          <input id="f-edge_gap_left" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_left" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.edge_gaps"></div>
+        <div class="field-error" data-error-for="edge_gap_left"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-edge_gap_right" data-i18n="field.edge_gap_right">Edge gap right</label>
+        <div class="input-unit">
+          <input id="f-edge_gap_right" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_right" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_gap_right"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-edge_gap_top" data-i18n="field.edge_gap_top">Edge gap top</label>
+        <div class="input-unit">
+          <input id="f-edge_gap_top" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_top" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_gap_top"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-edge_gap_bottom" data-i18n="field.edge_gap_bottom">Edge gap bottom</label>
+        <div class="input-unit">
+          <input id="f-edge_gap_bottom" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_bottom" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_gap_bottom"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-front_extend_top" data-i18n="field.front_extend_top">Extend front up</label>
+        <div class="input-unit">
+          <input id="f-front_extend_top" type="text" inputmode="decimal" autocomplete="off" data-key="front_extend_top" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="front_extend_top"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=overlay">
+        <label for="f-front_extend_bottom" data-i18n="field.front_extend_bottom">Extend front down</label>
+        <div class="input-unit">
+          <input id="f-front_extend_bottom" type="text" inputmode="decimal" autocomplete="off" data-key="front_extend_bottom" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.front_extend"></div>
+        <div class="field-error" data-error-for="front_extend_bottom"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=inset">
+        <label for="f-inset_gap" data-i18n="field.inset_gap">Gap to carcass</label>
+        <div class="input-unit">
+          <input id="f-inset_gap" type="text" inputmode="decimal" autocomplete="off" data-key="inset_gap" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="inset_gap"></div>
+      </div>
+      <div class="row" data-show-if="front_mount=inset">
+        <label for="f-inset_setback" data-i18n="field.inset_setback">Inset setback</label>
+        <div class="input-unit">
+          <input id="f-inset_setback" type="text" inputmode="decimal" autocomplete="off" data-key="inset_setback" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.inset_setback"></div>
+        <div class="field-error" data-error-for="inset_setback"></div>
+      </div>
+    </details>
+
+    <details class="section" open data-categories="base" data-show-if="cabinet_type=drawers">
+      <summary data-i18n="section.drawers">Drawers</summary>
+      <div class="row">
+        <label for="f-drawer_count" data-i18n="field.drawer_count">Number of drawers</label>
+        <div class="input-unit">
+          <input id="f-drawer_count" type="text" inputmode="numeric" autocomplete="off" data-key="drawer_count" data-type="int">
+          <span class="unit"></span>
+        </div>
+        <div class="field-error" data-error-for="drawer_count"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_heights" data-i18n="field.drawer_heights">Front heights (top to bottom)</label>
+        <div class="input-unit">
+          <input id="f-drawer_heights" type="text" inputmode="text" autocomplete="off" data-key="drawer_heights" data-type="text">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.drawer_heights"></div>
+        <div class="field-error" data-error-for="drawer_heights"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_box_height" data-i18n="field.drawer_box_height">Drawer box height</label>
+        <div class="input-unit">
+          <input id="f-drawer_box_height" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_box_height" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.auto_zero"></div>
+        <div class="field-error" data-error-for="drawer_box_height"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_box_depth" data-i18n="field.drawer_box_depth">Drawer box depth</label>
+        <div class="input-unit">
+          <input id="f-drawer_box_depth" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_box_depth" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.drawer_box_depth"></div>
+        <div class="field-error" data-error-for="drawer_box_depth"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_side_thickness" data-i18n="field.drawer_side_thickness">Box side thickness</label>
+        <div class="input-unit">
+          <input id="f-drawer_side_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_side_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="drawer_side_thickness"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_bottom_thickness" data-i18n="field.drawer_bottom_thickness">Box bottom thickness</label>
+        <div class="input-unit">
+          <input id="f-drawer_bottom_thickness" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_bottom_thickness" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="drawer_bottom_thickness"></div>
+      </div>
+      <div class="row">
+        <label for="f-slide_clearance" data-i18n="field.slide_clearance">Slide clearance per side</label>
+        <div class="input-unit">
+          <input id="f-slide_clearance" type="text" inputmode="decimal" autocomplete="off" data-key="slide_clearance" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="slide_clearance"></div>
+      </div>
+      <div class="row">
+        <label for="f-slide_depth_clearance" data-i18n="field.slide_depth_clearance">Slide depth clearance</label>
+        <div class="input-unit">
+          <input id="f-slide_depth_clearance" type="text" inputmode="decimal" autocomplete="off" data-key="slide_depth_clearance" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.slide_depth_clearance"></div>
+        <div class="field-error" data-error-for="slide_depth_clearance"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_front_clearance" data-i18n="field.drawer_front_clearance">Box gap behind front</label>
+        <div class="input-unit">
+          <input id="f-drawer_front_clearance" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_front_clearance" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="drawer_front_clearance"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_bottom_clearance" data-i18n="field.drawer_bottom_clearance">Box gap below</label>
+        <div class="input-unit">
+          <input id="f-drawer_bottom_clearance" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_bottom_clearance" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="drawer_bottom_clearance"></div>
+      </div>
+      <div class="row">
+        <label for="f-drawer_top_clearance" data-i18n="field.drawer_top_clearance">Box gap above</label>
+        <div class="input-unit">
+          <input id="f-drawer_top_clearance" type="text" inputmode="decimal" autocomplete="off" data-key="drawer_top_clearance" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="drawer_top_clearance"></div>
       </div>
     </details>
 

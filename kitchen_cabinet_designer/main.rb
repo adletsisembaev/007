@@ -13,6 +13,8 @@ module KitchenCabinetDesigner
     geometry/carcass_layout
     geometry/base_cabinet
     geometry/wall_cabinet
+    geometry/door_layout
+    geometry/drawer_layout
     geometry/layout
     sketchup/panel_builder
     sketchup/placement

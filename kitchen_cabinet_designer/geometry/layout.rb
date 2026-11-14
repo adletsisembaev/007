@@ -13,6 +13,7 @@ module KitchenCabinetDesigner
             when 'wall' then build_wall(params)
             else raise LayoutError, "Unknown category #{params['category'].inspect}"
             end
+          parts.concat(fronts(params, metrics(params)))
           verify!(parts)
           parts
         end
@@ -25,6 +26,15 @@ module KitchenCabinetDesigner
         # Carcass metrics (see CarcassLayout::Metrics) for either category.
         def metrics(params)
           params['category'] == 'base' ? BaseCabinet.metrics(params) : WallCabinet.metrics(params)
+        end
+
+        # Doors or drawers depending on the cabinet type.
+        def fronts(params, m)
+          doors = DoorLayout.door_count(params['cabinet_type'])
+          return DoorLayout.build(params, m, doors) if doors
+          return DrawerLayout.build(params, m) if params['cabinet_type'] == 'drawers'
+
+          []
         end
 
         private

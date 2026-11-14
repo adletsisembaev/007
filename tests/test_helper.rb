@@ -21,6 +21,8 @@ end
   geometry/carcass_layout
   geometry/base_cabinet
   geometry/wall_cabinet
+  geometry/door_layout
+  geometry/drawer_layout
   geometry/layout
 ].each { |file| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT, file) }
 

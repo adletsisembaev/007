@@ -124,7 +124,7 @@ class TestCarcassLayout < Minitest::Test
   def test_overall_size_matches_parameters
     grid.each do |category, overrides|
       params = valid_params(category, overrides)
-      parts = KCD::Geometry::Layout.build(params).reject { |p| p.container == 'MOUNTING' }
+      parts = KCD::Geometry::Layout.build(params).select { |p| %w[CARCASS SUPPORTS].include?(p.container) }
       zc = KCD::Geometry::Layout.carcass_bottom(params)
       overall = parts.map(&:bounds).reduce(:union)
       expected = [0.0, 0.0, 0.0, params['width'], params['depth'], zc + params['height']]
@@ -214,11 +214,20 @@ class TestCarcassLayout < Minitest::Test
       backs.each do |back|
         %w[top_panel rails none].each do |top|
           %w[legs legs_with_plinth plinth_box none].each do |support|
+            type = %w[single_door two_doors drawers open][combos.size % 4]
+            mount = combos.size.even? ? 'overlay' : 'inset'
             combos << ['base', { 'thickness' => t, 'width' => w, 'top_construction' => top,
-                                 'support_type' => support, 'shelf_count' => 2 }.merge(back)]
+                                 'support_type' => support, 'shelf_count' => 2,
+                                 'cabinet_type' => type, 'front_mount' => mount,
+                                 'shelf_front_setback' => 25 }.merge(back)]
           end
         end
-        combos << ['wall', { 'thickness' => t, 'width' => w, 'shelf_count' => 2 }.merge(back)]
+        %w[single_door two_doors open].each do |type|
+          combos << ['wall', { 'thickness' => t, 'width' => w, 'shelf_count' => 2,
+                               'cabinet_type' => type, 'front_extend_bottom' => 20 }.merge(back)]
+        end
+        combos << ['wall', { 'thickness' => t, 'width' => w, 'cabinet_type' => 'single_door',
+                             'front_mount' => 'inset', 'shelf_front_setback' => 25 }.merge(back)]
       end
     end
     combos

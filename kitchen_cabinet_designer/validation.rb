@@ -46,6 +46,9 @@ module KitchenCabinetDesigner
     MIN_SHELF_SPACING = 30.0
     MIN_PLINTH_HEIGHT = 10.0
     EPSILON_MM = 1.0e-6
+    MIN_DOOR_SIZE = 100.0
+    # A single door wider than this gets a warning (hinges, sagging).
+    WIDE_DOOR = 600.0
 
     class << self
       def check(raw)
@@ -112,6 +115,7 @@ module KitchenCabinetDesigner
         when :mm, :int then check_number(key, value, spec, errors)
         when :enum then check_enum(key, value, spec, errors)
         when :bool then parse_bool(value)
+        when :text then check_text(key, value, spec, errors)
         end
       end
 
@@ -142,6 +146,15 @@ module KitchenCabinetDesigner
         return text if spec[:values].include?(text)
 
         errors << Issue.new(key, L10n.t('error.enum', field: field_label(key), value: text))
+        nil
+      end
+
+      def check_text(key, value, spec, errors)
+        text = value.to_s.strip
+        return text if text.length <= spec[:max_length]
+
+        errors << Issue.new(key, L10n.t('error.text_length', field: field_label(key),
+                                                              max: spec[:max_length]))
         nil
       end
 
@@ -177,6 +190,7 @@ module KitchenCabinetDesigner
         check_shelves(params, m, errors)
         check_supports(params, m, errors) if params['category'] == 'base'
         check_hanging_rail(params, m, errors) if params['category'] == 'wall'
+        check_fronts(params, m, errors, warnings) if errors.empty?
       end
 
       # Options that only make sense together with another option.
@@ -226,7 +240,7 @@ module KitchenCabinetDesigner
       end
 
       def check_shelves(params, m, errors)
-        count = params['shelf_count']
+        count = Geometry::CarcassLayout.effective_shelf_count(params)
         return if count.zero?
 
         spacing = Geometry::CarcassLayout.shelf_spacing(m, count)
@@ -283,6 +297,59 @@ module KitchenCabinetDesigner
         return unless params['leg_offset_rear'] < r || rear_y - front_y < 2 * r
 
         errors << Issue.new('leg_offset_rear', L10n.t('error.legs_depth'))
+      end
+
+      def check_fronts(params, m, errors, warnings)
+        type = params['cabinet_type']
+        doors = Geometry::DoorLayout.door_count(type)
+        return unless doors || type == 'drawers'
+
+        zone = Geometry::DoorLayout.zone(params, m)
+        if params['front_mount'] == 'inset'
+          check_inset_fronts(params, m, zone, errors)
+        elsif params['category'] == 'base' && zone.z0 < -EPSILON_MM
+          errors << Issue.new('front_extend_bottom', L10n.t('error.front_below_floor'))
+        end
+        return unless errors.empty?
+
+        if doors
+          check_doors(params, m, doors, errors, warnings)
+        else
+          check_drawers(params, m, errors)
+        end
+      end
+
+      def check_inset_fronts(params, m, zone, errors)
+        if zone.y1 > m.usable_depth - MIN_PANEL_DEPTH
+          errors << Issue.new('inset_setback', L10n.t('error.inset_depth'))
+        end
+        shelves = Geometry::CarcassLayout.effective_shelf_count(params)
+        return unless shelves.positive? && params['shelf_front_setback'] < zone.y1 - EPSILON_MM
+
+        errors << Issue.new('shelf_front_setback',
+                            L10n.t('error.inset_shelves', min: fmt(zone.y1)))
+      end
+
+      def check_doors(params, m, count, errors, warnings)
+        Geometry::DoorLayout.doors(params, m, count).each do |_name, box|
+          width, _depth, height = box.size
+          if width < MIN_DOOR_SIZE || height < MIN_DOOR_SIZE
+            errors << Issue.new('width', L10n.t('error.door_small', min: fmt(MIN_DOOR_SIZE)))
+            return
+          end
+          if count == 1 && width > WIDE_DOOR
+            warnings << Issue.new('cabinet_type', L10n.t('warn.wide_door', width: fmt(width)))
+          end
+        end
+      end
+
+      def check_drawers(params, m, errors)
+        plan = Geometry::DrawerLayout.plan(params, m)
+        # One message per field: the first drawer that fails is enough.
+        plan.problems.uniq(&:first).each do |field, key, vars|
+          formatted = vars.transform_values { |v| v.is_a?(Float) ? fmt(v) : v }
+          errors << Issue.new(field, L10n.t(key, formatted))
+        end
       end
 
       def check_hanging_rail(params, m, errors)
