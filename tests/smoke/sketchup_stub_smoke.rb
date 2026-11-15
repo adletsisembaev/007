@@ -37,7 +37,10 @@ module Sketchup
     def make_unique; self; end; def model; $model; end; end
   class Definitions < Array; def add(n); d=ComponentDefinition.new(n); push d; d; end; def [](n); n.is_a?(String) ? find{|d| d.name==n} : super; end; end
   class Color; attr_reader :red,:green,:blue; def initialize(r,g,b); @red,@green,@blue=r,g,b; end; end
-  class Material; attr_accessor :name, :color; def initialize(n); @name=n; @color=Color.new(255,255,255); end; end
+  class Texture; attr_accessor :size, :path; def initialize(p); @path=p; end; end
+  class Material; include Attr; attr_accessor :name, :color; attr_reader :texture
+    def initialize(n); @name=n; @color=Color.new(255,255,255); @texture=nil; end
+    def texture=(p); raise "no file #{p}" unless File.exist?(p); @texture=Texture.new(p); end; end
   class Materials < Array; def [](n); n.is_a?(String) ? find{|m| m.name==n} : super; end; def add(n); m=Material.new(n); push m; m; end; end
   class Selection < Array; def add(e); push e; end; end
   class Model; attr_reader :definitions, :entities, :selection, :ops
@@ -51,7 +54,7 @@ module Sketchup
 end
 $pushes=[]
 module KitchenCabinetDesigner; PLUGIN_ID='kitchen_cabinet_designer'; PLUGIN_NAME='KCD'; VERSION='t'; PLUGIN_ROOT=File.expand_path('../../kitchen_cabinet_designer', __dir__); end
-%w[constants l10n settings validation geometry/part_spec geometry/carcass_layout geometry/base_cabinet geometry/wall_cabinet geometry/door_layout geometry/drawer_layout geometry/layout sketchup/materials sketchup/panel_builder sketchup/placement sketchup/cabinet_builder].each{|f| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT,f)}
+%w[constants l10n settings validation geometry/part_spec geometry/carcass_layout geometry/base_cabinet geometry/wall_cabinet geometry/door_layout geometry/drawer_layout material_library geometry/layout sketchup/materials sketchup/panel_builder sketchup/placement sketchup/cabinet_builder].each{|f| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT,f)}
 K=KitchenCabinetDesigner
 $model=m=Sketchup::Model.new
 def m.entities; super.tap{|e| e.parent=self}; end
@@ -73,8 +76,11 @@ o=K::CabinetBuilder.create(m3, K::Settings.defaults('base').merge('width'=>900))
 ents=o.instance.definition.entities
 p ents.map(&:name), ents.find{|g| g.name=='SUPPORTS'}.entities.map(&:name)
 p m3.ops
-p m3.materials.map{|x| [x.name, x.color.red]}
+p m3.materials.map{|x| [x.name, x.color.red, x.texture && File.basename(x.texture.path), x.texture && (x.texture.size[0]*25.4).round]}
 p K::Materials.list(m3).first
+o=K::CabinetBuilder.create(m3, K::Settings.defaults('base').merge('front_material'=>'color:#2a6f97','carcass_material'=>'preset:white'))
+o=K::CabinetBuilder.create(m3, K::Settings.defaults('base').merge('front_material'=>'color:#2a6f97','carcass_material'=>'model:Missing One'))
+p m3.materials.map(&:name)
 g=o.instance.definition.entities.find{|e| e.name=='CARCASS'}.entities.first; p g.material&.name
 o=K::CabinetBuilder.create(m3, K::Settings.defaults('base').merge('cabinet_type'=>'drawers'))
 e=o.instance.definition.entities

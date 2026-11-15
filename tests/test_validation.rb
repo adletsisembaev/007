@@ -50,7 +50,7 @@ class TestValidation < Minitest::Test
   end
 
   def test_planned_types_report_not_implemented
-    %w[corner appliance custom].each do |type|
+    %w[appliance custom].each do |type|
       result = check('wall', 'cabinet_type' => type)
       refute result.ok?
       assert_match(/Not implemented yet/, result.errors.first.message)

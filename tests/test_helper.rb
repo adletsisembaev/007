@@ -17,6 +17,7 @@ end
   l10n
   settings
   validation
+  material_library
   geometry/part_spec
   geometry/carcass_layout
   geometry/base_cabinet
@@ -25,6 +26,9 @@ end
   geometry/drawer_layout
   geometry/layout
 ].each { |file| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT, file) }
+
+# Tests assert English messages; the Russian file is checked separately.
+KitchenCabinetDesigner::L10n.locale = 'en'
 
 module TestSupport
   KCD = KitchenCabinetDesigner

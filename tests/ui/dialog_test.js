@@ -12,7 +12,9 @@ const path = require('path');
 const OUT = process.argv[2] || require('os').tmpdir();
 const HERE = __dirname;
 require('child_process').execFileSync('ruby', [path.join(HERE, 'dump_init.rb'), path.join(OUT, 'kcd_init.json')]);
-const init = JSON.parse(fs.readFileSync(path.join(OUT, 'kcd_init.json'))).init;
+const dumped = JSON.parse(fs.readFileSync(path.join(OUT, 'kcd_init.json')));
+const init = dumped.init;
+const locales = dumped.locales;
 const rb = spawn('ruby', [path.join(HERE, 'bridge_server.rb')]);
 const rl = readline.createInterface({ input: rb.stdout });
 const waiting = [];
@@ -25,15 +27,16 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
   page.on('console', m => logs.push(m.type() + ': ' + m.text()));
   page.on('pageerror', e => logs.push('PAGEERROR: ' + e.message));
   await page.exposeFunction('rubyValidate', validate);
-  await page.addInitScript(init => {
+  await page.addInitScript(([init, locales]) => {
     window.__calls = [];
     window.sketchup = {
       ready() { KCD.receive(init); },
       validate(j) { window.__calls.push(['validate', j]); rubyValidate(j).then(m => KCD.receive(JSON.parse(m))); },
       create_cabinet(j) { window.__calls.push(['create', j]); KCD.receive({type:'result', ok:true, message:'Created CABINET_600_BASE.', errors:[], warnings:[]}); },
+      set_locale(j) { KCD.receive(locales[JSON.parse(j)]); },
       refresh_materials() {}, load_selected() {}, close() {}, clear_target() {}, update_cabinet() {}
     };
-  }, init);
+  }, [init, locales]);
   await page.goto('file://' + path.resolve(HERE, '../../kitchen_cabinet_designer/dialogs/main.html'));
   await page.waitForTimeout(800);
   const rects1 = await page.$$eval('#preview rect', r => r.length);
@@ -51,10 +54,42 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
   await page.fill('#f-drawer_heights', '140;0;0');
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, 'ui_drawers.png'), fullPage: false });
-  // existing material locks colour
-  await page.fill('#f-front_material', 'Oak Veneer');
-  await page.waitForTimeout(400);
-  const locked = await page.$eval('#f-front_color', e => [e.disabled, e.value]);
+  // material picker: texture preset, model material, custom colour
+  const russianTitle = await page.textContent('h1');
+  await page.click('[data-material-button="front_material"]');
+  const pickerOpen = await page.isVisible('[data-picker-for="front_material"]');
+  const chipCount = await page.$$eval('[data-picker-for="front_material"] .chip', c => c.length);
+  await page.screenshot({ path: path.join(OUT, 'ui_picker.png'), fullPage: false });
+  await page.click('[data-picker-for="front_material"] .chip[title="Орех"]');
+  const afterPreset = await page.inputValue('#f-front_material');
+  const buttonLabel = await page.textContent('[data-material-button="front_material"] .swatch-label');
+  await page.click('[data-material-button="carcass_material"]');
+  await page.click('[data-picker-for="carcass_material"] .chip[title="Egger W1000"]');
+  const afterModel = await page.inputValue('#f-carcass_material');
+  await page.click('[data-material-button="hardware_material"]');
+  await page.fill('[data-picker-for="hardware_material"] .custom-color input[type="text"]', 'zz');
+  await page.click('[data-picker-for="hardware_material"] .custom-color button');
+  const badHex = await page.textContent('[data-picker-for="hardware_material"] .field-error');
+  await page.fill('[data-picker-for="hardware_material"] .custom-color input[type="text"]', '2a6f97');
+  await page.press('[data-picker-for="hardware_material"] .custom-color input[type="text"]', 'Enter');
+  const afterCustom = await page.inputValue('#f-hardware_material');
+  await page.waitForTimeout(700);
+  const texturedRects = await page.$$eval('#preview rect', r => r.filter(x => (x.getAttribute('fill') || '').startsWith('url(')).length);
+  const locked = { pickerOpen, chipCount, afterPreset, buttonLabel, afterModel, badHex, afterCustom, texturedRects, russianTitle };
+  // language switch keeps edited values
+  await page.selectOption('#language-select', 'en');
+  await page.waitForTimeout(500);
+  locked.englishTitle = await page.textContent('h1');
+  locked.valueKept = await page.inputValue('#f-front_material');
+  locked.englishLabel = await page.textContent('[data-material-button="front_material"] .swatch-label');
+  await page.selectOption('#language-select', 'ru');
+  await page.waitForTimeout(300);
+  // corner cabinet
+  await page.selectOption('#f-cabinet_type', 'corner');
+  await page.waitForTimeout(700);
+  locked.cornerFields = await page.isVisible('#f-blind_width');
+  locked.cornerPreview = await page.$$eval('#preview rect', r => r.map(x => x.textContent).filter(n => n === 'BLIND_PANEL' || n === 'DOOR'));
+  await page.screenshot({ path: path.join(OUT, 'ui_corner.png'), fullPage: false });
   // wall
   await page.click('[data-category-button="wall"]');
   await page.waitForTimeout(800);

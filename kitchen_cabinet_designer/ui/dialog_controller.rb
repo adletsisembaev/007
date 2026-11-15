@@ -10,7 +10,7 @@ module KitchenCabinetDesigner
   # field: init, params, validation, result, status.
   module DialogController
     CALLBACKS = %w[ready validate create_cabinet update_cabinet load_selected
-                   clear_target refresh_materials close].freeze
+                   clear_target refresh_materials set_locale close].freeze
 
     class << self
       # Opens the dialog (or brings it to front). With load_selection: true
@@ -64,6 +64,7 @@ module KitchenCabinetDesigner
         when 'load_selected'  then load_selected
         when 'clear_target'   then @edit_target = nil
         when 'refresh_materials' then send_materials
+        when 'set_locale' then on_set_locale(payload)
         when 'close'          then @dialog&.close
         end
       end
@@ -109,9 +110,27 @@ module KitchenCabinetDesigner
               'implemented' => type[:implemented] }
           end,
           'defaults' => Settings::CATEGORIES.to_h { |c| [c, Settings.defaults(c)] },
-          'lastUsed' => Settings::CATEGORIES.to_h { |c| [c, Settings.last_used(c)] },
-          'materials' => Materials.list(Sketchup.active_model)
+          'lastUsed' => Settings::CATEGORIES.to_h { |c| [c, Settings.last_used(c)] }
+        }.merge(locale_payload).merge('materials' => Materials.list(Sketchup.active_model))
+      end
+
+      # Everything that depends on the interface language.
+      def locale_payload
+        {
+          'locale' => L10n.locale,
+          'locales' => L10n::AVAILABLE,
+          'strings' => L10n.strings,
+          'presets' => MaterialLibrary.dialog_presets
         }
+      end
+
+      # Switches the language; the dialog re-labels itself without losing
+      # the values being edited. Menu and toolbar texts change on restart.
+      def on_set_locale(payload)
+        code = payload.is_a?(String) ? payload.delete('"') : payload.to_s
+        return unless L10n.save_locale(code)
+
+        send_message(locale_payload.merge('type' => 'locale'))
       end
 
       # Validation answer, with front-view preview data when valid.
@@ -134,8 +153,9 @@ module KitchenCabinetDesigner
       end
 
       def on_create(params)
+        # Creating never starts editing: Update only ever changes a cabinet the
+        # user explicitly loaded with Load Selected / Edit Cabinet.
         outcome = CabinetBuilder.create(Sketchup.active_model, params)
-        @edit_target = outcome.instance if outcome.ok
         send_result(outcome)
       end
 
@@ -146,6 +166,13 @@ module KitchenCabinetDesigner
           @edit_target = nil
           send_target(nil)
           send_status('error', L10n.t('msg.target_lost'))
+          return
+        end
+
+        stored = CabinetBuilder.read_params(target) || {}
+        if stored['category'] && stored['category'] != params['category'].to_s
+          send_status('error', L10n.t('msg.category_change',
+                                      category: L10n.t("category.#{stored['category']}")))
           return
         end
 

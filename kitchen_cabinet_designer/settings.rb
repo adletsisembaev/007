@@ -18,7 +18,7 @@ module KitchenCabinetDesigner
       { id: 'two_doors',   categories: %w[base wall], implemented: true },
       { id: 'drawers',     categories: %w[base],      implemented: true },
       { id: 'open',        categories: %w[base wall], implemented: true },
-      { id: 'corner',      categories: %w[base wall], implemented: false },
+      { id: 'corner',      categories: %w[base wall], implemented: true },
       { id: 'sink',        categories: %w[base],      implemented: false },
       { id: 'appliance',   categories: %w[base wall], implemented: false },
       { id: 'custom',      categories: %w[base wall], implemented: false }
@@ -28,7 +28,7 @@ module KitchenCabinetDesigner
 
     # Field schema.
     #   type:       :mm (Float, millimetres), :enum, :bool, :int, :text,
-    #               :material (material name), :color ("#rrggbb")
+    #               :material (material spec, see MaterialLibrary)
     #   min/max:    inclusive range for :mm and :int
     #   values:     allowed values for :enum
     #   default:    a value, or a Hash keyed by category
@@ -74,6 +74,11 @@ module KitchenCabinetDesigner
       'inset_gap' => { type: :mm, min: 0, max: 20, default: 2 },
       'inset_setback' => { type: :mm, min: 0, max: 50, default: 0 },
 
+      # Blind corner cabinet: the front is a blind panel on the corner side
+      # plus one door.
+      'corner_side' => { type: :enum, values: %w[left right], default: 'left' },
+      'blind_width' => { type: :mm, min: 50, max: 1500, default: 300 },
+
       # Drawers (base cabinets only)
       'drawer_count' => { type: :int, min: 1, max: 8, default: 3, categories: %w[base] },
       'drawer_heights' => { type: :text, max_length: 200, default: '', categories: %w[base] },
@@ -106,18 +111,13 @@ module KitchenCabinetDesigner
       'rail_height' => { type: :mm, min: 10, max: 200, default: 50, categories: %w[wall] },
       'rail_thickness' => { type: :mm, min: 2, max: 50, default: 10, categories: %w[wall] },
 
-      # Materials: an existing model material is used as-is; otherwise a
-      # material with this name is created with the given colour.
-      'carcass_material' => { type: :material, default: 'KCD Carcass' },
-      'carcass_color' => { type: :color, default: '#ede9e2' },
-      'front_material' => { type: :material, default: 'KCD Front' },
-      'front_color' => { type: :color, default: '#c9a46b' },
-      'back_material' => { type: :material, default: 'KCD Back' },
-      'back_color' => { type: :color, default: '#f4f1ea' },
-      'drawer_box_material' => { type: :material, default: 'KCD Drawer Box', categories: %w[base] },
-      'drawer_box_color' => { type: :color, default: '#e2dacb', categories: %w[base] },
-      'hardware_material' => { type: :material, default: 'KCD Hardware' },
-      'hardware_color' => { type: :color, default: '#6b7078' },
+      # Materials: specs as described in MaterialLibrary
+      # ("preset:<key>", "color:#rrggbb" or "model:<name>").
+      'carcass_material' => { type: :material, default: 'preset:white' },
+      'front_material' => { type: :material, default: 'preset:oak_sonoma' },
+      'back_material' => { type: :material, default: 'preset:white' },
+      'drawer_box_material' => { type: :material, default: 'preset:ash_white', categories: %w[base] },
+      'hardware_material' => { type: :material, default: 'preset:anthracite' },
 
       # Placement
       'elevation' => {

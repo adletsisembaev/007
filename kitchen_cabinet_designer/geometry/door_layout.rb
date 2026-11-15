@@ -28,9 +28,11 @@ module KitchenCabinetDesigner
           end
         end
 
-        # Door boxes for 1 or 2 doors as [name, Box].
+        # Front boxes as [name, Box]: 1 or 2 doors, or for a corner cabinet
+        # a blind panel plus one door.
         def doors(params, m, count)
           z = zone(params, m)
+          return corner_fronts(params, m, z) if params['cabinet_type'] == 'corner'
           return [['DOOR', z]] if count == 1
 
           width = (z.x1 - z.x0 - params['front_gap']) / 2.0
@@ -38,6 +40,21 @@ module KitchenCabinetDesigner
             ['DOOR_LEFT', Box.new(z.x0, z.y0, z.z0, z.x0 + width, z.y1, z.z1)],
             ['DOOR_RIGHT', Box.new(z.x1 - width, z.y0, z.z0, z.x1, z.y1, z.z1)]
           ]
+        end
+
+        # The blind panel covers `blind_width` mm measured from the outer
+        # face of the corner-side panel to the middle of the gap.
+        def corner_fronts(params, m, z)
+          half_gap = params['front_gap'] / 2.0
+          blind = params['blind_width']
+          if params['corner_side'] == 'left'
+            [['BLIND_PANEL', Box.new(z.x0, z.y0, z.z0, blind - half_gap, z.y1, z.z1)],
+             ['DOOR', Box.new(blind + half_gap, z.y0, z.z0, z.x1, z.y1, z.z1)]]
+          else
+            edge = m.width - blind
+            [['DOOR', Box.new(z.x0, z.y0, z.z0, edge - half_gap, z.y1, z.z1)],
+             ['BLIND_PANEL', Box.new(edge + half_gap, z.y0, z.z0, z.x1, z.y1, z.z1)]]
+          end
         end
 
         def build(params, m, count)
@@ -48,7 +65,7 @@ module KitchenCabinetDesigner
 
         # Number of doors for a cabinet type (nil if the type has no doors).
         def door_count(cabinet_type)
-          { 'single_door' => 1, 'two_doors' => 2 }[cabinet_type]
+          { 'single_door' => 1, 'two_doors' => 2, 'corner' => 1 }[cabinet_type]
         end
       end
     end

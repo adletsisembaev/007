@@ -23,6 +23,8 @@
     valuesByCategory: {},
     editing: false,
     materials: [],
+    presets: [],
+    locale: 'ru',
     validateTimer: null,
     busyTimer: null
   };
@@ -149,7 +151,8 @@
       typeSelect.selectedIndex = 0;
     }
     updateVisibility();
-    syncMaterialColors();
+    updateMaterialButtons();
+    closePickers();
     clearFieldErrors();
   }
 
@@ -282,62 +285,240 @@
   }
 
   // ------------------------------------------------------------ materials
+  //
+  // A material field holds a spec string (see material_library.rb):
+  //   preset:<key>  |  color:#rrggbb  |  model:<name>
+  // The picker is plain HTML, so it works in SketchUp's embedded browser,
+  // which does not open the native colour chooser of <input type="color">.
 
   var SVG_NS = 'http://www.w3.org/2000/svg';
-  var SLOT_COLOR_KEYS = {
-    carcass: 'carcass_color',
-    front: 'front_color',
-    back: 'back_color',
-    drawer_box: 'drawer_box_color',
-    hardware: 'hardware_color'
+  var SLOT_KEYS = {
+    carcass: 'carcass_material',
+    front: 'front_material',
+    back: 'back_material',
+    drawer_box: 'drawer_box_material',
+    hardware: 'hardware_material'
   };
+  var FALLBACK_COLOR = '#cccccc';
 
-  function findMaterial(name) {
+  function parseSpec(spec) {
+    var text = String(spec || '').trim();
+    if (!text) { return null; }
+    var i = text.indexOf(':');
+    var kind = i < 0 ? '' : text.slice(0, i);
+    if (kind !== 'preset' && kind !== 'color' && kind !== 'model') {
+      return { kind: 'model', value: text };
+    }
+    return { kind: kind, value: text.slice(i + 1) };
+  }
+
+  function findPreset(key) {
+    for (var i = 0; i < state.presets.length; i++) {
+      if (state.presets[i].key === key) { return state.presets[i]; }
+    }
+    return null;
+  }
+
+  function findModelMaterial(name) {
     for (var i = 0; i < state.materials.length; i++) {
       if (state.materials[i].name === name) { return state.materials[i]; }
     }
     return null;
   }
 
-  function renderMaterialList() {
-    var list = $('#kcd-materials');
-    if (!list) { return; }
-    list.innerHTML = '';
-    state.materials.forEach(function (material) {
-      var option = document.createElement('option');
-      option.value = material.name;
-      list.appendChild(option);
-    });
-    syncMaterialColors();
+  // { label, color, texture } for a spec.
+  function describeSpec(spec) {
+    var parsed = parseSpec(spec);
+    if (!parsed) { return { label: '', color: FALLBACK_COLOR, texture: null }; }
+    if (parsed.kind === 'preset') {
+      var preset = findPreset(parsed.value);
+      if (preset) { return { label: preset.label, color: preset.color, texture: preset.texture }; }
+    }
+    if (parsed.kind === 'color') {
+      return { label: t('material.custom_label', { hex: parsed.value }), color: parsed.value, texture: null };
+    }
+    var material = findModelMaterial(parsed.value);
+    return { label: parsed.value, color: material ? material.color : FALLBACK_COLOR, texture: null };
   }
 
-  // Existing materials keep their own colour: show it and lock the picker.
-  function syncMaterialColors() {
-    $all('[data-color-key]').forEach(function (input) {
-      var picker = fieldByKey(input.getAttribute('data-color-key'));
-      if (!picker) { return; }
-      var existing = findMaterial(input.value.trim());
-      if (existing) {
-        if (!picker.disabled) { picker.setAttribute('data-own-color', picker.value); }
-        picker.value = existing.color;
-        picker.disabled = true;
-        picker.title = t('label.existing_material');
-      } else {
-        if (picker.disabled && picker.hasAttribute('data-own-color')) {
-          picker.value = picker.getAttribute('data-own-color');
-        }
-        picker.disabled = false;
-        picker.title = '';
+  function paintSwatch(el, description) {
+    el.style.backgroundColor = description.color;
+    el.style.backgroundImage = description.texture ? 'url("' + description.texture + '")' : 'none';
+  }
+
+  function updateMaterialButtons() {
+    $all('[data-material-button]').forEach(function (btn) {
+      var field = fieldByKey(btn.getAttribute('data-material-button'));
+      var description = describeSpec(field ? field.value : '');
+      paintSwatch($('.swatch', btn), description);
+      $('.swatch-label', btn).textContent = description.label;
+    });
+  }
+
+  function closePickers() {
+    $all('.material-picker').forEach(function (picker) { picker.hidden = true; });
+    $all('[data-material-button]').forEach(function (btn) { btn.classList.remove('open'); });
+  }
+
+  function selectMaterial(key, spec) {
+    fieldByKey(key).value = spec;
+    updateMaterialButtons();
+    closePickers();
+    scheduleValidation();
+  }
+
+  function makeChip(key, spec, description, current) {
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (spec === current ? ' selected' : '');
+    chip.title = description.label;
+    var swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    paintSwatch(swatch, description);
+    var label = document.createElement('span');
+    label.className = 'chip-label';
+    label.textContent = description.label;
+    chip.appendChild(swatch);
+    chip.appendChild(label);
+    chip.addEventListener('click', function () { selectMaterial(key, spec); });
+    return chip;
+  }
+
+  function addGroup(picker, title, chips) {
+    var heading = document.createElement('div');
+    heading.className = 'picker-heading';
+    heading.textContent = title;
+    picker.appendChild(heading);
+    var grid = document.createElement('div');
+    grid.className = 'chip-grid';
+    chips.forEach(function (chip) { grid.appendChild(chip); });
+    picker.appendChild(grid);
+    return grid;
+  }
+
+  function buildCustomColor(picker, key, current) {
+    var heading = document.createElement('div');
+    heading.className = 'picker-heading';
+    heading.textContent = t('material.group.custom');
+    picker.appendChild(heading);
+
+    var row = document.createElement('div');
+    row.className = 'custom-color';
+    var parsed = parseSpec(current);
+    var start = parsed && parsed.kind === 'color' ? parsed.value : describeSpec(current).color;
+
+    var preview = document.createElement('span');
+    preview.className = 'swatch';
+    preview.style.backgroundColor = start;
+
+    // Opens a colour chooser where the browser supports it; the hex field
+    // below always works.
+    var native = document.createElement('input');
+    native.type = 'color';
+    native.value = /^#[0-9a-fA-F]{6}$/.test(start) ? start : FALLBACK_COLOR;
+
+    var hex = document.createElement('input');
+    hex.type = 'text';
+    hex.value = start;
+    hex.placeholder = t('material.custom_placeholder');
+    hex.maxLength = 7;
+
+    var apply = document.createElement('button');
+    apply.type = 'button';
+    apply.textContent = t('material.apply');
+
+    var error = document.createElement('div');
+    error.className = 'field-error';
+
+    function normalized() {
+      var value = hex.value.trim().toLowerCase();
+      if (value && value.charAt(0) !== '#') { value = '#' + value; }
+      return /^#[0-9a-f]{6}$/.test(value) ? value : null;
+    }
+    function applyColor() {
+      var value = normalized();
+      if (!value) {
+        error.textContent = t('material.custom_invalid');
+        return;
+      }
+      selectMaterial(key, 'color:' + value);
+    }
+
+    native.addEventListener('input', function () {
+      hex.value = native.value;
+      preview.style.backgroundColor = native.value;
+      error.textContent = '';
+    });
+    hex.addEventListener('input', function () {
+      var value = normalized();
+      if (value) {
+        preview.style.backgroundColor = value;
+        native.value = value;
+      }
+      error.textContent = '';
+    });
+    hex.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applyColor();
       }
     });
+    apply.addEventListener('click', applyColor);
+
+    row.appendChild(preview);
+    row.appendChild(native);
+    row.appendChild(hex);
+    row.appendChild(apply);
+    picker.appendChild(row);
+    picker.appendChild(error);
+  }
+
+  function buildPicker(key) {
+    var picker = $('[data-picker-for="' + key + '"]');
+    var current = fieldByKey(key).value;
+    picker.innerHTML = '';
+
+    var colors = [];
+    var textures = [];
+    state.presets.forEach(function (preset) {
+      var spec = 'preset:' + preset.key;
+      var chip = makeChip(key, spec, describeSpec(spec), current);
+      (preset.texture ? textures : colors).push(chip);
+    });
+    addGroup(picker, t('material.group.colors'), colors);
+    addGroup(picker, t('material.group.textures'), textures);
+
+    var modelChips = state.materials.map(function (material) {
+      var spec = 'model:' + material.name;
+      return makeChip(key, spec, describeSpec(spec), current);
+    });
+    var grid = addGroup(picker, t('material.group.model'), modelChips);
+    if (!modelChips.length) {
+      var empty = document.createElement('div');
+      empty.className = 'hint';
+      empty.textContent = t('material.model_empty');
+      grid.appendChild(empty);
+    }
+
+    buildCustomColor(picker, key, current);
+  }
+
+  function togglePicker(key) {
+    var picker = $('[data-picker-for="' + key + '"]');
+    var opening = picker.hidden;
+    closePickers();
+    if (!opening) { return; }
+    buildPicker(key);
+    picker.hidden = false;
+    $('[data-material-button="' + key + '"]').classList.add('open');
   }
 
   // -------------------------------------------------------------- preview
 
-  function slotColor(slot) {
-    var key = SLOT_COLOR_KEYS[slot];
-    var el = key ? fieldByKey(key) : null;
-    return el && /^#[0-9a-fA-F]{6}$/.test(el.value) ? el.value : '#cccccc';
+  function slotFill(slot) {
+    var key = SLOT_KEYS[slot];
+    var field = key ? fieldByKey(key) : null;
+    return describeSpec(field ? field.value : '');
   }
 
   function clearPreview(caption) {
@@ -365,13 +546,39 @@
     floor.setAttribute('vector-effect', 'non-scaling-stroke');
     if (params.category === 'base') { svg.appendChild(floor); }
 
+    // Textured materials are shown with their texture, 400 mm per tile.
+    var defs = document.createElementNS(SVG_NS, 'defs');
+    svg.appendChild(defs);
+    var patterns = {};
+    function fillFor(slot) {
+      var description = slotFill(slot);
+      if (!description.texture) { return description.color; }
+      if (!patterns[description.texture]) {
+        var id = 'tex' + Object.keys(patterns).length;
+        var pattern = document.createElementNS(SVG_NS, 'pattern');
+        pattern.setAttribute('id', id);
+        pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+        pattern.setAttribute('width', 400);
+        pattern.setAttribute('height', 400);
+        var image = document.createElementNS(SVG_NS, 'image');
+        image.setAttribute('href', description.texture);
+        image.setAttribute('width', 400);
+        image.setAttribute('height', 400);
+        image.setAttribute('preserveAspectRatio', 'none');
+        pattern.appendChild(image);
+        defs.appendChild(pattern);
+        patterns[description.texture] = 'url(#' + id + ')';
+      }
+      return patterns[description.texture];
+    }
+
     preview.rects.forEach(function (r) {
       var rect = document.createElementNS(SVG_NS, 'rect');
       rect.setAttribute('x', r.x0);
       rect.setAttribute('y', -r.z1);
       rect.setAttribute('width', Math.max(r.x1 - r.x0, 0.1));
       rect.setAttribute('height', Math.max(r.z1 - r.z0, 0.1));
-      rect.setAttribute('fill', slotColor(r.slot));
+      rect.setAttribute('fill', fillFor(r.slot));
       rect.setAttribute('stroke', '#3a3f47');
       rect.setAttribute('stroke-width', '1');
       if (r.shape === 'cylinder') { rect.setAttribute('rx', (r.x1 - r.x0) / 4); }
@@ -458,9 +665,13 @@
     $('#btn-load').addEventListener('click', function () { callRuby('load_selected'); });
     $('#btn-reset').addEventListener('click', resetDefaults);
     $('#btn-refresh-materials').addEventListener('click', function () { callRuby('refresh_materials'); });
-    $all('[data-color-key]').forEach(function (input) {
-      input.addEventListener('input', syncMaterialColors);
-      input.addEventListener('change', syncMaterialColors);
+    $all('[data-material-button]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        togglePicker(btn.getAttribute('data-material-button'));
+      });
+    });
+    $('#language-select').addEventListener('change', function () {
+      callRuby('set_locale', $('#language-select').value);
     });
     $('#btn-close').addEventListener('click', function () {
       if (!callRuby('close')) { window.close(); }
@@ -474,18 +685,31 @@
 
   // ------------------------------------------------------- Ruby messages
 
+  // Applies interface strings without touching the values being edited.
+  function applyLocale(msg, revalidate) {
+    state.strings = msg.strings || state.strings;
+    state.presets = msg.presets || state.presets;
+    state.locale = msg.locale || state.locale;
+    applyStrings();
+    document.documentElement.lang = state.locale;
+    var select = $('#language-select');
+    if (select) { select.value = state.locale; }
+    buildTypeOptions();
+    updateMaterialButtons();
+    closePickers();
+    if (revalidate) { scheduleValidation(); }
+  }
+
   var handlers = {
     init: function (msg) {
-      state.strings = msg.strings || {};
       state.cabinetTypes = msg.cabinetTypes || [];
       state.defaults = msg.defaults || {};
       state.lastUsed = msg.lastUsed || {};
       state.materials = msg.materials || [];
-      applyStrings();
+      applyLocale(msg, false);
       $('#version').textContent = t('label.version', { version: msg.version || '' });
       state.category = 'base';
       fillForm(state.lastUsed.base || state.defaults.base || {});
-      renderMaterialList();
       hideStatus();
       scheduleValidation();
     },
@@ -524,7 +748,14 @@
 
     materials: function (msg) {
       state.materials = msg.materials || [];
-      renderMaterialList();
+      updateMaterialButtons();
+      var open = $('.material-picker:not([hidden])');
+      if (open) { buildPicker(open.getAttribute('data-picker-for')); }
+    },
+
+    locale: function (msg) {
+      applyLocale(msg, true);
+      showStatus('info', t('msg.language_restart'));
     },
 
     status: function (msg) {

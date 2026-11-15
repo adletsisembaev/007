@@ -9,18 +9,36 @@ module KitchenCabinetDesigner
   # map is sent to the HTML dialog, so Ruby and JavaScript share one source.
   # Missing keys in a translation fall back to English, then to the key itself.
   # Placeholders use the %{name} syntax.
+  #
+  # Language: the user's choice saved in SketchUp preferences, otherwise
+  # Russian (PREFERRED_LOCALE). English is the fallback for missing keys.
   module L10n
     DEFAULT_LOCALE = 'en'
+    PREFERRED_LOCALE = 'ru'
+    AVAILABLE = %w[ru en].freeze
+    PREFERENCE_KEY = 'locale'
 
     class << self
       def locale
         @locale ||= detect_locale
       end
 
-      # Allows forcing a locale (e.g. from tests or a future settings option).
+      # Forces a locale for this session (tests, or after the user's choice).
       def locale=(code)
         @locale = code.to_s
         @strings = nil
+      end
+
+      # Switches the language and remembers it for the next SketchUp start.
+      def save_locale(code)
+        code = code.to_s
+        return false unless AVAILABLE.include?(code)
+
+        self.locale = code
+        if defined?(Sketchup) && Sketchup.respond_to?(:write_default)
+          Sketchup.write_default(PLUGIN_ID, PREFERENCE_KEY, code)
+        end
+        true
       end
 
       def strings
@@ -44,9 +62,10 @@ module KitchenCabinetDesigner
       private
 
       def detect_locale
-        code = DEFAULT_LOCALE
-        if defined?(Sketchup) && Sketchup.respond_to?(:get_locale)
-          code = Sketchup.get_locale.to_s[0, 2].downcase
+        code = PREFERRED_LOCALE
+        if defined?(Sketchup) && Sketchup.respond_to?(:read_default)
+          saved = Sketchup.read_default(PLUGIN_ID, PREFERENCE_KEY, nil).to_s
+          code = saved if AVAILABLE.include?(saved)
         end
         File.exist?(locale_path(code)) ? code : DEFAULT_LOCALE
       rescue StandardError

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,7 +18,16 @@
       data-error-for="name"    container for the field's validation message
   -->
   <header class="app-header">
-    <h1 data-i18n="dialog.title">Kitchen Cabinet Designer</h1>
+    <div class="header-row">
+      <h1 data-i18n="dialog.title">Kitchen Cabinet Designer</h1>
+      <label class="language">
+        <span data-i18n="label.language">Language</span>
+        <select id="language-select" aria-label="Language">
+          <option value="ru">RU</option>
+          <option value="en">EN</option>
+        </select>
+      </label>
+    </div>
     <div id="edit-target" class="edit-target" hidden>
       <span id="edit-target-label"></span>
       <button type="button" id="btn-stop-editing" class="link-button" data-i18n="button.stop_editing">Stop editing</button>
@@ -77,51 +86,50 @@
 
     <details class="section" open>
       <summary data-i18n="section.materials">Material Settings</summary>
-      <datalist id="kcd-materials"></datalist>
       <div class="row material-row">
-        <label for="f-carcass_material" data-i18n="field.carcass_material">Carcass material</label>
-        <div class="input-unit">
-          <input id="f-carcass_material" type="text" list="kcd-materials" autocomplete="off" data-key="carcass_material" data-type="material" data-color-key="carcass_color">
-          <input id="f-carcass_color" type="color" data-key="carcass_color" data-type="color">
-        </div>
+        <label data-i18n="field.carcass_material">Carcass</label>
+        <button type="button" class="swatch-button" data-material-button="carcass_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-carcass_material" data-key="carcass_material" data-type="material">
         <div class="field-error" data-error-for="carcass_material"></div>
-        <div class="field-error" data-error-for="carcass_color"></div>
+        <div class="material-picker" data-picker-for="carcass_material" hidden></div>
       </div>
-      <div class="row material-row" data-show-if="cabinet_type=single_door,two_doors,drawers">
-        <label for="f-front_material" data-i18n="field.front_material">Front material</label>
-        <div class="input-unit">
-          <input id="f-front_material" type="text" list="kcd-materials" autocomplete="off" data-key="front_material" data-type="material" data-color-key="front_color">
-          <input id="f-front_color" type="color" data-key="front_color" data-type="color">
-        </div>
+      <div class="row material-row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner">
+        <label data-i18n="field.front_material">Fronts</label>
+        <button type="button" class="swatch-button" data-material-button="front_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-front_material" data-key="front_material" data-type="material">
         <div class="field-error" data-error-for="front_material"></div>
-        <div class="field-error" data-error-for="front_color"></div>
+        <div class="material-picker" data-picker-for="front_material" hidden></div>
       </div>
       <div class="row material-row" data-show-if="back_mode=overlay,inset">
-        <label for="f-back_material" data-i18n="field.back_material">Back panel material</label>
-        <div class="input-unit">
-          <input id="f-back_material" type="text" list="kcd-materials" autocomplete="off" data-key="back_material" data-type="material" data-color-key="back_color">
-          <input id="f-back_color" type="color" data-key="back_color" data-type="color">
-        </div>
+        <label data-i18n="field.back_material">Back panel</label>
+        <button type="button" class="swatch-button" data-material-button="back_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-back_material" data-key="back_material" data-type="material">
         <div class="field-error" data-error-for="back_material"></div>
-        <div class="field-error" data-error-for="back_color"></div>
+        <div class="material-picker" data-picker-for="back_material" hidden></div>
       </div>
       <div class="row material-row" data-categories="base" data-show-if="cabinet_type=drawers">
-        <label for="f-drawer_box_material" data-i18n="field.drawer_box_material">Drawer box material</label>
-        <div class="input-unit">
-          <input id="f-drawer_box_material" type="text" list="kcd-materials" autocomplete="off" data-key="drawer_box_material" data-type="material" data-color-key="drawer_box_color">
-          <input id="f-drawer_box_color" type="color" data-key="drawer_box_color" data-type="color">
-        </div>
+        <label data-i18n="field.drawer_box_material">Drawer boxes</label>
+        <button type="button" class="swatch-button" data-material-button="drawer_box_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-drawer_box_material" data-key="drawer_box_material" data-type="material">
         <div class="field-error" data-error-for="drawer_box_material"></div>
-        <div class="field-error" data-error-for="drawer_box_color"></div>
+        <div class="material-picker" data-picker-for="drawer_box_material" hidden></div>
       </div>
       <div class="row material-row">
-        <label for="f-hardware_material" data-i18n="field.hardware_material">Legs and rail material</label>
-        <div class="input-unit">
-          <input id="f-hardware_material" type="text" list="kcd-materials" autocomplete="off" data-key="hardware_material" data-type="material" data-color-key="hardware_color">
-          <input id="f-hardware_color" type="color" data-key="hardware_color" data-type="color">
-        </div>
+        <label data-i18n="field.hardware_material">Legs and rail</label>
+        <button type="button" class="swatch-button" data-material-button="hardware_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-hardware_material" data-key="hardware_material" data-type="material">
         <div class="field-error" data-error-for="hardware_material"></div>
-        <div class="field-error" data-error-for="hardware_color"></div>
+        <div class="material-picker" data-picker-for="hardware_material" hidden></div>
       </div>
       <div class="hint" data-i18n="hint.materials"></div>
       <div class="actions-inline"><button type="button" id="btn-refresh-materials" class="link-button" data-i18n="button.refresh_materials">Refresh material list</button></div>
@@ -217,7 +225,7 @@
       </div>
     </details>
 
-    <details class="section" open data-show-if="cabinet_type=single_door,two_doors,drawers">
+    <details class="section" open data-show-if="cabinet_type=single_door,two_doors,drawers,corner">
       <summary data-i18n="section.fronts">Doors and Fronts</summary>
       <div class="row">
         <label for="f-front_mount" data-i18n="field.front_mount">Front mounting</label>
@@ -242,6 +250,23 @@
           <span class="unit" data-i18n="unit.mm">mm</span>
         </div>
         <div class="field-error" data-error-for="front_gap"></div>
+      </div>
+      <div class="row" data-show-if="cabinet_type=corner">
+        <label for="f-corner_side" data-i18n="field.corner_side">Blind side</label>
+        <select id="f-corner_side" data-key="corner_side" data-type="enum">
+          <option value="left" data-i18n="option.corner.left">Left</option>
+          <option value="right" data-i18n="option.corner.right">Right</option>
+        </select>
+        <div class="field-error" data-error-for="corner_side"></div>
+      </div>
+      <div class="row" data-show-if="cabinet_type=corner">
+        <label for="f-blind_width" data-i18n="field.blind_width">Blind panel width</label>
+        <div class="input-unit">
+          <input id="f-blind_width" type="text" inputmode="decimal" autocomplete="off" data-key="blind_width" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.blind_width"></div>
+        <div class="field-error" data-error-for="blind_width"></div>
       </div>
     </details>
 
@@ -426,8 +451,8 @@
         <div class="hint" data-i18n="hint.groove_extra_width"></div>
         <div class="field-error" data-error-for="groove_extra_width"></div>
       </div>
-      <h3 class="subhead" data-show-if="cabinet_type=single_door,two_doors,drawers" data-i18n="advanced.fronts"></h3>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <h3 class="subhead" data-show-if="cabinet_type=single_door,two_doors,drawers,corner" data-i18n="advanced.fronts"></h3>
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-edge_gap_left" data-i18n="field.edge_gap_left">Edge gap left</label>
         <div class="input-unit">
           <input id="f-edge_gap_left" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_left" data-type="mm">
@@ -436,7 +461,7 @@
         <div class="hint" data-i18n="hint.edge_gaps"></div>
         <div class="field-error" data-error-for="edge_gap_left"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-edge_gap_right" data-i18n="field.edge_gap_right">Edge gap right</label>
         <div class="input-unit">
           <input id="f-edge_gap_right" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_right" data-type="mm">
@@ -444,7 +469,7 @@
         </div>
         <div class="field-error" data-error-for="edge_gap_right"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-edge_gap_top" data-i18n="field.edge_gap_top">Edge gap top</label>
         <div class="input-unit">
           <input id="f-edge_gap_top" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_top" data-type="mm">
@@ -452,7 +477,7 @@
         </div>
         <div class="field-error" data-error-for="edge_gap_top"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-edge_gap_bottom" data-i18n="field.edge_gap_bottom">Edge gap bottom</label>
         <div class="input-unit">
           <input id="f-edge_gap_bottom" type="text" inputmode="decimal" autocomplete="off" data-key="edge_gap_bottom" data-type="mm">
@@ -460,7 +485,7 @@
         </div>
         <div class="field-error" data-error-for="edge_gap_bottom"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-front_extend_top" data-i18n="field.front_extend_top">Extend front up</label>
         <div class="input-unit">
           <input id="f-front_extend_top" type="text" inputmode="decimal" autocomplete="off" data-key="front_extend_top" data-type="mm">
@@ -468,7 +493,7 @@
         </div>
         <div class="field-error" data-error-for="front_extend_top"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=overlay">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=overlay">
         <label for="f-front_extend_bottom" data-i18n="field.front_extend_bottom">Extend front down</label>
         <div class="input-unit">
           <input id="f-front_extend_bottom" type="text" inputmode="decimal" autocomplete="off" data-key="front_extend_bottom" data-type="mm">
@@ -477,7 +502,7 @@
         <div class="hint" data-i18n="hint.front_extend"></div>
         <div class="field-error" data-error-for="front_extend_bottom"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=inset">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=inset">
         <label for="f-inset_gap" data-i18n="field.inset_gap">Gap to carcass</label>
         <div class="input-unit">
           <input id="f-inset_gap" type="text" inputmode="decimal" autocomplete="off" data-key="inset_gap" data-type="mm">
@@ -485,7 +510,7 @@
         </div>
         <div class="field-error" data-error-for="inset_gap"></div>
       </div>
-      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers;front_mount=inset">
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner;front_mount=inset">
         <label for="f-inset_setback" data-i18n="field.inset_setback">Inset setback</label>
         <div class="input-unit">
           <input id="f-inset_setback" type="text" inputmode="decimal" autocomplete="off" data-key="inset_setback" data-type="mm">

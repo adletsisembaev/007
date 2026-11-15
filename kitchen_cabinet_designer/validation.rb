@@ -117,7 +117,6 @@ module KitchenCabinetDesigner
         when :bool then parse_bool(value)
         when :text then check_text(key, value, spec, errors)
         when :material then check_material(key, value, spec, errors)
-        when :color then check_color(key, value, errors)
         end
       end
 
@@ -160,25 +159,15 @@ module KitchenCabinetDesigner
         nil
       end
 
-      MATERIAL_NAME_MAX = 100
-
-      # Empty names fall back to the default name; control characters are
-      # rejected because they cannot be shown in SketchUp's material browser.
+      # Material specs (see MaterialLibrary). An empty value falls back to
+      # the default; an unknown preset, a bad colour or a bad name is an error.
       def check_material(key, value, spec, errors)
-        name = value.to_s.strip
-        name = spec[:default] if name.empty?
-        if name.length > MATERIAL_NAME_MAX || name.match?(/[[:cntrl:]]/)
-          errors << Issue.new(key, L10n.t('error.material_name', max: MATERIAL_NAME_MAX))
-          return nil
-        end
-        name
-      end
+        value = spec[:default] if value.to_s.strip.empty?
+        normalized = MaterialLibrary.normalize(value)
+        return normalized if normalized
 
-      def check_color(key, value, errors)
-        text = value.to_s.strip.downcase
-        return text if parse_color(text)
-
-        errors << Issue.new(key, L10n.t('error.color', field: field_label(key)))
+        errors << Issue.new(key, L10n.t('error.material', field: field_label(key),
+                                                           max: MaterialLibrary::NAME_MAX))
         nil
       end
 
@@ -359,11 +348,33 @@ module KitchenCabinetDesigner
         errors << Issue.new('inset_setback', L10n.t('error.inset_depth'))
       end
 
+      # Blind panel and door widths, computed from the raw coordinates
+      # (a Box would silently swap reversed coordinates).
+      def check_corner(params, m, errors)
+        z = Geometry::DoorLayout.zone(params, m)
+        half_gap = params['front_gap'] / 2.0
+        blind = params['blind_width']
+        if params['corner_side'] == 'left'
+          panel = blind - half_gap - z.x0
+          door = z.x1 - (blind + half_gap)
+        else
+          panel = z.x1 - (m.width - blind + half_gap)
+          door = (m.width - blind - half_gap) - z.x0
+        end
+        return true if [panel, door].min >= MIN_DOOR_SIZE
+
+        errors << Issue.new('blind_width', L10n.t('error.corner_split', min: fmt(MIN_DOOR_SIZE)))
+        false
+      end
+
       def check_doors(params, m, count, errors, warnings)
+        corner = params['cabinet_type'] == 'corner'
+        return if corner && !check_corner(params, m, errors)
         Geometry::DoorLayout.doors(params, m, count).each do |_name, box|
           width, _depth, height = box.size
           if width < MIN_DOOR_SIZE || height < MIN_DOOR_SIZE
-            errors << Issue.new('width', L10n.t('error.door_small', min: fmt(MIN_DOOR_SIZE)))
+            key = corner ? 'error.corner_split' : 'error.door_small'
+            errors << Issue.new(corner ? 'blind_width' : 'width', L10n.t(key, min: fmt(MIN_DOOR_SIZE)))
             return
           end
           if count == 1 && width > WIDE_DOOR

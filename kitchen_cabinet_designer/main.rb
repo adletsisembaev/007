@@ -9,6 +9,7 @@ module KitchenCabinetDesigner
     l10n
     settings
     validation
+    material_library
     geometry/part_spec
     geometry/carcass_layout
     geometry/base_cabinet
