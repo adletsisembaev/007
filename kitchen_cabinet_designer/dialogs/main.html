@@ -92,6 +92,11 @@
           <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
         </button>
         <input type="hidden" id="f-carcass_material" data-key="carcass_material" data-type="material">
+        <select class="grain-select" id="f-carcass_grain" data-key="carcass_grain" data-type="enum" aria-label="Texture direction">
+          <option value="length" data-i18n="option.grain.length">Texture along the part</option>
+          <option value="width" data-i18n="option.grain.width">Texture across the part</option>
+          <option value="default" data-i18n="option.grain.default">Texture as in SketchUp</option>
+        </select>
         <div class="field-error" data-error-for="carcass_material"></div>
         <div class="material-picker" data-picker-for="carcass_material" hidden></div>
       </div>
@@ -101,6 +106,11 @@
           <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
         </button>
         <input type="hidden" id="f-front_material" data-key="front_material" data-type="material">
+        <select class="grain-select" id="f-front_grain" data-key="front_grain" data-type="enum" aria-label="Texture direction">
+          <option value="length" data-i18n="option.grain.length">Texture along the part</option>
+          <option value="width" data-i18n="option.grain.width">Texture across the part</option>
+          <option value="default" data-i18n="option.grain.default">Texture as in SketchUp</option>
+        </select>
         <div class="field-error" data-error-for="front_material"></div>
         <div class="material-picker" data-picker-for="front_material" hidden></div>
       </div>
@@ -110,6 +120,11 @@
           <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
         </button>
         <input type="hidden" id="f-back_material" data-key="back_material" data-type="material">
+        <select class="grain-select" id="f-back_grain" data-key="back_grain" data-type="enum" aria-label="Texture direction">
+          <option value="length" data-i18n="option.grain.length">Texture along the part</option>
+          <option value="width" data-i18n="option.grain.width">Texture across the part</option>
+          <option value="default" data-i18n="option.grain.default">Texture as in SketchUp</option>
+        </select>
         <div class="field-error" data-error-for="back_material"></div>
         <div class="material-picker" data-picker-for="back_material" hidden></div>
       </div>
@@ -119,8 +134,27 @@
           <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
         </button>
         <input type="hidden" id="f-drawer_box_material" data-key="drawer_box_material" data-type="material">
+        <select class="grain-select" id="f-drawer_box_grain" data-key="drawer_box_grain" data-type="enum" aria-label="Texture direction">
+          <option value="length" data-i18n="option.grain.length">Texture along the part</option>
+          <option value="width" data-i18n="option.grain.width">Texture across the part</option>
+          <option value="default" data-i18n="option.grain.default">Texture as in SketchUp</option>
+        </select>
         <div class="field-error" data-error-for="drawer_box_material"></div>
         <div class="material-picker" data-picker-for="drawer_box_material" hidden></div>
+      </div>
+      <div class="row material-row" data-categories="base" data-show-if="support_type=legs_with_plinth,plinth_box">
+        <label data-i18n="field.plinth_material">Plinth board</label>
+        <button type="button" class="swatch-button" data-material-button="plinth_material">
+          <span class="swatch"></span><span class="swatch-label"></span><span class="caret">&#9662;</span>
+        </button>
+        <input type="hidden" id="f-plinth_material" data-key="plinth_material" data-type="material">
+        <select class="grain-select" id="f-plinth_grain" data-key="plinth_grain" data-type="enum" aria-label="Texture direction">
+          <option value="length" data-i18n="option.grain.length">Texture along the part</option>
+          <option value="width" data-i18n="option.grain.width">Texture across the part</option>
+          <option value="default" data-i18n="option.grain.default">Texture as in SketchUp</option>
+        </select>
+        <div class="field-error" data-error-for="plinth_material"></div>
+        <div class="material-picker" data-picker-for="plinth_material" hidden></div>
       </div>
       <div class="row material-row">
         <label data-i18n="field.hardware_material">Legs and rail</label>
@@ -179,6 +213,31 @@
           <span class="unit" data-i18n="unit.mm">mm</span>
         </div>
         <div class="field-error" data-error-for="back_thickness"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=overlay">
+        <label for="f-back_offset_side" data-i18n="field.back_offset_side">HDF back: offset from sides</label>
+        <div class="input-unit">
+          <input id="f-back_offset_side" type="text" inputmode="decimal" autocomplete="off" data-key="back_offset_side" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="hint" data-i18n="hint.back_offset"></div>
+        <div class="field-error" data-error-for="back_offset_side"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=overlay">
+        <label for="f-back_offset_top" data-i18n="field.back_offset_top">HDF back: offset from top</label>
+        <div class="input-unit">
+          <input id="f-back_offset_top" type="text" inputmode="decimal" autocomplete="off" data-key="back_offset_top" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="back_offset_top"></div>
+      </div>
+      <div class="row" data-show-if="back_mode=overlay">
+        <label for="f-back_offset_bottom" data-i18n="field.back_offset_bottom">HDF back: offset from bottom</label>
+        <div class="input-unit">
+          <input id="f-back_offset_bottom" type="text" inputmode="decimal" autocomplete="off" data-key="back_offset_bottom" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="back_offset_bottom"></div>
       </div>
       <div class="row" data-show-if="back_mode=inset">
         <label for="f-back_inset" data-i18n="field.back_inset">Back panel position</label>
@@ -428,6 +487,76 @@
         <div class="hint" data-i18n="hint.wall_gap"></div>
         <div class="field-error" data-error-for="wall_gap"></div>
       </div>
+    </details>
+
+    <details class="section" open>
+      <summary data-i18n="section.edges">Edge banding</summary>
+      <div class="row">
+        <label for="f-edge_carcass" data-i18n="field.edge_carcass">Carcass edge (front edges)</label>
+        <div class="input-unit">
+          <input id="f-edge_carcass" type="text" inputmode="decimal" autocomplete="off" data-key="edge_carcass" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_carcass"></div>
+      </div>
+      <div class="row" data-show-if="cabinet_type=single_door,two_doors,drawers,corner">
+        <label for="f-edge_front" data-i18n="field.edge_front">Front edge (all edges)</label>
+        <div class="input-unit">
+          <input id="f-edge_front" type="text" inputmode="decimal" autocomplete="off" data-key="edge_front" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_front"></div>
+      </div>
+      <div class="row" data-categories="base" data-show-if="cabinet_type=drawers">
+        <label for="f-edge_box" data-i18n="field.edge_box">Drawer box edge (top edges)</label>
+        <div class="input-unit">
+          <input id="f-edge_box" type="text" inputmode="decimal" autocomplete="off" data-key="edge_box" data-type="mm">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+        <div class="field-error" data-error-for="edge_box"></div>
+      </div>
+      <div class="hint" data-i18n="hint.edges"></div>
+    </details>
+
+    <details class="section">
+      <summary data-i18n="section.export">Cut list and estimate</summary>
+      <div class="row">
+        <label for="x-scope" data-i18n="export.scope">Cabinets</label>
+        <select id="x-scope" data-export-key="scope">
+          <option value="model" data-i18n="option.scope.model">All cabinets in the model</option>
+          <option value="selection" data-i18n="option.scope.selection">Selected cabinets only</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="x-sheet_length" data-i18n="export.sheet_length">Sheet length</label>
+        <div class="input-unit">
+          <input id="x-sheet_length" type="text" inputmode="decimal" autocomplete="off" data-export-key="sheet_length">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+      </div>
+      <div class="row">
+        <label for="x-sheet_width" data-i18n="export.sheet_width">Sheet width</label>
+        <div class="input-unit">
+          <input id="x-sheet_width" type="text" inputmode="decimal" autocomplete="off" data-export-key="sheet_width">
+          <span class="unit" data-i18n="unit.mm">mm</span>
+        </div>
+      </div>
+      <div class="row">
+        <label for="x-waste_percent" data-i18n="export.waste_percent">Cutting waste, %</label>
+        <div class="input-unit">
+          <input id="x-waste_percent" type="text" inputmode="decimal" autocomplete="off" data-export-key="waste_percent">
+          <span class="unit">%</span>
+        </div>
+      </div>
+      <div class="row">
+        <label for="x-edge_allowance_percent" data-i18n="export.edge_allowance_percent">Edge allowance, %</label>
+        <div class="input-unit">
+          <input id="x-edge_allowance_percent" type="text" inputmode="decimal" autocomplete="off" data-export-key="edge_allowance_percent">
+          <span class="unit">%</span>
+        </div>
+      </div>
+      <div class="hint" data-i18n="hint.export"></div>
+      <div class="actions-inline"><button type="button" id="btn-export" data-i18n="button.export">Export cut list and estimate (CSV)...</button></div>
     </details>
 
     <details class="section">

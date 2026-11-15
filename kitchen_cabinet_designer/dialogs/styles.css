@@ -431,3 +431,58 @@ input[type="color"]:disabled { opacity: 0.6; }
 }
 
 .custom-color button { padding: 4px 10px; }
+
+/* ---- Material picker: RAL, own library, texture direction ---- */
+.material-row > .grain-select {
+  grid-column: 2;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.chip { position: relative; }
+
+.chip-remove {
+  margin-left: auto;
+  padding: 0 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.chip-remove:hover { color: var(--error); }
+
+.ral-search {
+  width: 100%;
+  margin-bottom: 4px;
+  text-align: left !important;
+}
+
+.ral-grid {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.library-actions,
+.library-color {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.library-actions button { flex: 1; }
+
+.library-color input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.library-color .hex-input {
+  flex: none;
+  width: 80px;
+  font-family: Consolas, Menlo, monospace;
+}
+
+/* Long material names are shortened instead of widening the row. */
+.material-row > * { min-width: 0; }
+.swatch-button { min-width: 0; overflow: hidden; }

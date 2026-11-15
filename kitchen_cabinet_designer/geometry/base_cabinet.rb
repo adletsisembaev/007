@@ -81,7 +81,7 @@ module KitchenCabinetDesigner
         end
 
         def plinth(name, box)
-          PartSpec.box(name: name, container: CONTAINER, material: :carcass, box: box)
+          PartSpec.box(name: name, container: CONTAINER, material: :plinth, box: box)
         end
       end
     end

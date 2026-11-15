@@ -62,7 +62,7 @@ class TestMaterialsAndPreview < Minitest::Test
   end
 
   def test_every_part_uses_a_known_material_slot
-    slots = %i[carcass front back drawer_box hardware]
+    slots = %i[carcass front back drawer_box hardware plinth]
     [['base', { 'cabinet_type' => 'drawers' }], ['base', { 'cabinet_type' => 'corner' }],
      ['wall', { 'hanging_rail' => true, 'back_mode' => 'inset' }]].each do |cat, o|
       KCD::Geometry::Layout.build(valid_params(cat, o)).each do |p|

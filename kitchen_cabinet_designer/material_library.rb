@@ -7,6 +7,9 @@ module KitchenCabinetDesigner
   #   "preset:<key>"     - a library preset (plain colour or texture)
   #   "color:#rrggbb"    - a custom colour
   #   "model:<name>"     - an existing material of the SketchUp model
+  #   "ral:<code>"       - a RAL Classic colour (see RalColors)
+  #   "user:<id>"        - an item of the user's own library (UserLibrary)
+  #   "same:front"       - the same material as the fronts (plinth board)
   # Older versions stored a bare material name; it is read as "model:<name>".
   #
   # Pure Ruby (no SketchUp API) so it can be unit-tested; Materials turns
@@ -57,6 +60,9 @@ module KitchenCabinetDesigner
         when 'preset' then preset(value) ? { kind: :preset, value: value } : nil
         when 'color' then color_value(value)
         when 'model' then model_value(value)
+        when 'ral' then RalColors.find(value) ? { kind: :ral, value: RalColors.find(value)[0] } : nil
+        when 'user' then UserLibrary::ID_PATTERN.match?(value.to_s) ? { kind: :user, value: value } : nil
+        when 'same' then value == 'front' ? { kind: :same, value: 'front' } : nil
         else model_value(text) # legacy: bare material name
         end
       end
@@ -72,6 +78,8 @@ module KitchenCabinetDesigner
         case parsed[:kind]
         when :preset then "KCD #{L10n.t("material.#{parsed[:value]}")}"
         when :color then "KCD #{parsed[:value]}"
+        when :ral then "KCD RAL #{parsed[:value]}"
+        when :user then "KCD #{UserLibrary.find(parsed[:value])&.fetch('name', nil) || parsed[:value]}"
         else parsed[:value]
         end
       end

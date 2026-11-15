@@ -25,6 +25,7 @@ module KitchenCabinetDesigner
     ].freeze
 
     CABINET_TYPE_IDS = CABINET_TYPES.map { |type| type[:id] }.freeze
+    GRAIN_VALUES = %w[length width default].freeze
 
     # Field schema.
     #   type:       :mm (Float, millimetres), :enum, :bool, :int, :text,
@@ -58,6 +59,11 @@ module KitchenCabinetDesigner
       'groove_depth' => { type: :mm, min: 1, max: 30, default: 8 },
       'groove_play' => { type: :mm, min: 0, max: 10, default: 1 },
       'groove_extra_width' => { type: :mm, min: 0, max: 3, default: 0.5 },
+      # Overlay (HDF) back: distance from the carcass outline to the back
+      # panel edge, so the back is not visible from the side.
+      'back_offset_side' => { type: :mm, min: 0, max: 20, default: 2 },
+      'back_offset_top' => { type: :mm, min: 0, max: 20, default: 2 },
+      'back_offset_bottom' => { type: :mm, min: 0, max: 20, default: 2 },
       'shelf_count' => { type: :int, min: 0, max: 10, default: 1 },
       'shelf_front_setback' => { type: :mm, min: 0, max: 300, default: 0 },
 
@@ -118,6 +124,20 @@ module KitchenCabinetDesigner
       'back_material' => { type: :material, default: 'preset:white' },
       'drawer_box_material' => { type: :material, default: 'preset:ash_white', categories: %w[base] },
       'hardware_material' => { type: :material, default: 'preset:anthracite' },
+      'plinth_material' => { type: :material, default: 'same:front', categories: %w[base] },
+
+      # Texture direction per material: 'length' = along the part's length,
+      # 'width' = across it, 'default' = as SketchUp maps it.
+      'carcass_grain' => { type: :enum, values: GRAIN_VALUES, default: 'length' },
+      'front_grain' => { type: :enum, values: GRAIN_VALUES, default: 'length' },
+      'back_grain' => { type: :enum, values: GRAIN_VALUES, default: 'length' },
+      'drawer_box_grain' => { type: :enum, values: GRAIN_VALUES, default: 'length', categories: %w[base] },
+      'plinth_grain' => { type: :enum, values: GRAIN_VALUES, default: 'length', categories: %w[base] },
+
+      # Edge banding thickness (0 = none), used for the cut list.
+      'edge_carcass' => { type: :mm, min: 0, max: 5, default: 1 },
+      'edge_front' => { type: :mm, min: 0, max: 5, default: 1 },
+      'edge_box' => { type: :mm, min: 0, max: 5, default: 0.4, categories: %w[base] },
 
       # Placement
       'elevation' => {

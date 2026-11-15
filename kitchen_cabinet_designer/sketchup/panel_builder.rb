@@ -22,13 +22,14 @@ module KitchenCabinetDesigner
       # entities:  Sketchup::Entities to build into (a definition's entities)
       # specs:     Array<Geometry::PartSpec>
       # materials: Hash slot (Symbol) => Sketchup::Material or nil
+      # grains:    Hash slot (Symbol) => 'length' | 'width' (texture direction)
       # Returns a Hash part-name => Sketchup::Group.
-      def render(entities, specs, materials = {})
+      def render(entities, specs, materials = {}, grains = {})
         containers = {}
         groups = {}
         specs.each do |spec|
           target = container_entities(entities, spec.container, containers)
-          groups[spec.name] = build_part(target, spec, materials)
+          groups[spec.name] = build_part(target, spec, materials, grains)
         end
         groups
       end
@@ -50,7 +51,7 @@ module KitchenCabinetDesigner
         group.entities
       end
 
-      def build_part(entities, spec, materials)
+      def build_part(entities, spec, materials, grains)
         group = entities.add_group
         group.name = spec.name
         case spec.shape_type
@@ -62,9 +63,33 @@ module KitchenCabinetDesigner
 
         material = materials[spec.material]
         group.material = material if material
+        grain = grains[spec.material]
+        align_texture(group.entities, spec, material, grain) if grain && material&.texture
         group.set_attribute(DICT, 'part_role', spec.role)
         group.set_attribute(DICT, 'cut_size_mm', spec.cut_size.join(' x '))
         group
+      end
+
+      AXIS_VECTORS = [
+        Geom::Vector3d.new(1, 0, 0), Geom::Vector3d.new(0, 1, 0), Geom::Vector3d.new(0, 0, 1)
+      ].freeze
+
+      # Paints every face and turns the texture so that its horizontal axis
+      # (the grain of the built-in wood textures) runs along the part's
+      # longer in-plane dimension ('length') or across it ('width').
+      def align_texture(entities, spec, material, grain)
+        size = spec.bounds.size
+        tile = material.texture.width
+        uv_origin = Geom::Point3d.new(0, 0, 0)
+        uv_unit = Geom::Point3d.new(1, 0, 0)
+        entities.grep(Sketchup::Face).each do |face|
+          n = face.normal
+          normal_axis = [n.x.abs, n.y.abs, n.z.abs].each_with_index.max[1]
+          longer, shorter = ([0, 1, 2] - [normal_axis]).sort_by { |i| -size[i] }
+          direction = AXIS_VECTORS[grain == 'width' ? shorter : longer]
+          origin = face.vertices.first.position
+          face.position_material(material, [origin, uv_origin, origin.offset(direction, tile), uv_unit], true)
+        end
       end
 
       def build_box(entities, box, spec)

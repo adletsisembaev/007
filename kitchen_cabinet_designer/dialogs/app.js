@@ -24,6 +24,8 @@
     editing: false,
     materials: [],
     presets: [],
+    ral: [],
+    library: [],
     locale: 'ru',
     validateTimer: null,
     busyTimer: null
@@ -297,7 +299,8 @@
     front: 'front_material',
     back: 'back_material',
     drawer_box: 'drawer_box_material',
-    hardware: 'hardware_material'
+    hardware: 'hardware_material',
+    plinth: 'plinth_material'
   };
   var FALLBACK_COLOR = '#cccccc';
 
@@ -306,7 +309,7 @@
     if (!text) { return null; }
     var i = text.indexOf(':');
     var kind = i < 0 ? '' : text.slice(0, i);
-    if (kind !== 'preset' && kind !== 'color' && kind !== 'model') {
+    if (['preset', 'color', 'model', 'ral', 'user', 'same'].indexOf(kind) < 0) {
       return { kind: 'model', value: text };
     }
     return { kind: kind, value: text.slice(i + 1) };
@@ -326,19 +329,51 @@
     return null;
   }
 
-  // { label, color, texture } for a spec.
+  function findRal(code) {
+    for (var i = 0; i < state.ral.length; i++) {
+      if (state.ral[i].code === code) { return state.ral[i]; }
+    }
+    return null;
+  }
+
+  function findLibraryItem(id) {
+    for (var i = 0; i < state.library.length; i++) {
+      if (state.library[i].id === id) { return state.library[i]; }
+    }
+    return null;
+  }
+
+  // { label, color, texture, textured } for a spec.
   function describeSpec(spec) {
     var parsed = parseSpec(spec);
     if (!parsed) { return { label: '', color: FALLBACK_COLOR, texture: null }; }
+    if (parsed.kind === 'same') {
+      var front = describeSpec(fieldByKey('front_material').value);
+      return { label: t('material.same_front') + ' (' + front.label + ')', color: front.color,
+               texture: front.texture, textured: front.textured };
+    }
+    if (parsed.kind === 'ral') {
+      var ral = findRal(parsed.value);
+      return { label: ral ? ral.label : 'RAL ' + parsed.value, color: ral ? ral.color : FALLBACK_COLOR, texture: null };
+    }
+    if (parsed.kind === 'user') {
+      var item = findLibraryItem(parsed.value);
+      if (!item) { return { label: parsed.value, color: FALLBACK_COLOR, texture: null }; }
+      return { label: item.name, color: item.color || FALLBACK_COLOR, texture: item.texture,
+               textured: item.kind === 'texture' };
+    }
     if (parsed.kind === 'preset') {
       var preset = findPreset(parsed.value);
-      if (preset) { return { label: preset.label, color: preset.color, texture: preset.texture }; }
+      if (preset) {
+        return { label: preset.label, color: preset.color, texture: preset.texture, textured: !!preset.texture };
+      }
     }
     if (parsed.kind === 'color') {
       return { label: t('material.custom_label', { hex: parsed.value }), color: parsed.value, texture: null };
     }
     var material = findModelMaterial(parsed.value);
-    return { label: parsed.value, color: material ? material.color : FALLBACK_COLOR, texture: null };
+    return { label: parsed.value, color: material ? material.color : FALLBACK_COLOR, texture: null,
+             textured: material ? material.textured : true };
   }
 
   function paintSwatch(el, description) {
@@ -352,6 +387,9 @@
       var description = describeSpec(field ? field.value : '');
       paintSwatch($('.swatch', btn), description);
       $('.swatch-label', btn).textContent = description.label;
+      // The texture direction only matters for textured materials.
+      var grain = $('.grain-select', btn.parentNode);
+      if (grain) { grain.hidden = !description.textured; }
     });
   }
 
@@ -382,6 +420,105 @@
     chip.appendChild(label);
     chip.addEventListener('click', function () { selectMaterial(key, spec); });
     return chip;
+  }
+
+  function makeLibraryChip(key, item, current) {
+    var chip = makeChip(key, 'user:' + item.id, describeSpec('user:' + item.id), current);
+    var remove = document.createElement('span');
+    remove.className = 'chip-remove';
+    remove.textContent = '\u00d7';
+    remove.title = t('library.delete');
+    remove.addEventListener('click', function (event) {
+      event.stopPropagation();
+      callRuby('library_remove', item.id);
+    });
+    chip.appendChild(remove);
+    return chip;
+  }
+
+  function buildRal(picker, key, current) {
+    var heading = document.createElement('div');
+    heading.className = 'picker-heading';
+    heading.textContent = t('material.group.ral');
+    picker.appendChild(heading);
+    var search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'ral-search';
+    search.placeholder = t('material.ral_search');
+    picker.appendChild(search);
+    var grid = document.createElement('div');
+    grid.className = 'chip-grid ral-grid';
+    picker.appendChild(grid);
+    function render() {
+      var query = search.value.trim().toLowerCase();
+      grid.innerHTML = '';
+      state.ral.forEach(function (ral) {
+        if (query && ral.label.toLowerCase().indexOf(query) < 0) { return; }
+        var spec = 'ral:' + ral.code;
+        grid.appendChild(makeChip(key, spec, describeSpec(spec), current));
+      });
+    }
+    search.addEventListener('input', render);
+    render();
+  }
+
+  function buildLibrary(picker, key, current) {
+    var chips = state.library.map(function (item) { return makeLibraryChip(key, item, current); });
+    var grid = addGroup(picker, t('material.group.library'), chips);
+    if (!chips.length) {
+      var empty = document.createElement('div');
+      empty.className = 'hint';
+      empty.textContent = t('library.empty');
+      grid.appendChild(empty);
+    }
+    var actions = document.createElement('div');
+    actions.className = 'library-actions';
+    [['library.add_texture', 'library_add_texture'], ['library.add_folder', 'library_add_folder']].forEach(function (pair) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = t(pair[0]);
+      button.addEventListener('click', function () {
+        state.libraryTarget = key;
+        callRuby(pair[1]);
+      });
+      actions.appendChild(button);
+    });
+    picker.appendChild(actions);
+
+    var form = document.createElement('div');
+    form.className = 'library-color';
+    var name = document.createElement('input');
+    name.type = 'text';
+    name.placeholder = t('library.color_name');
+    var hex = document.createElement('input');
+    hex.type = 'text';
+    hex.className = 'hex-input';
+    hex.placeholder = t('material.custom_placeholder');
+    hex.maxLength = 7;
+    var add = document.createElement('button');
+    add.type = 'button';
+    add.textContent = t('library.add_color');
+    var error = document.createElement('div');
+    error.className = 'field-error';
+    add.addEventListener('click', function () {
+      var value = hex.value.trim().toLowerCase();
+      if (value && value.charAt(0) !== '#') { value = '#' + value; }
+      if (!/^#[0-9a-f]{6}$/.test(value)) {
+        error.textContent = t('material.custom_invalid');
+        return;
+      }
+      state.libraryTarget = key;
+      callRuby('library_add_color', { name: name.value, color: value });
+    });
+    form.appendChild(name);
+    form.appendChild(hex);
+    form.appendChild(add);
+    picker.appendChild(form);
+    picker.appendChild(error);
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = t('library.hint');
+    picker.appendChild(hint);
   }
 
   function addGroup(picker, title, chips) {
@@ -478,6 +615,10 @@
     var current = fieldByKey(key).value;
     picker.innerHTML = '';
 
+    if (key === 'plinth_material') {
+      addGroup(picker, t('field.plinth_material'), [makeChip(key, 'same:front', describeSpec('same:front'), current)]);
+    }
+
     var colors = [];
     var textures = [];
     state.presets.forEach(function (preset) {
@@ -487,6 +628,8 @@
     });
     addGroup(picker, t('material.group.colors'), colors);
     addGroup(picker, t('material.group.textures'), textures);
+    buildLibrary(picker, key, current);
+    buildRal(picker, key, current);
 
     var modelChips = state.materials.map(function (material) {
       var spec = 'model:' + material.name;
@@ -670,6 +813,12 @@
         togglePicker(btn.getAttribute('data-material-button'));
       });
     });
+    $('#btn-export').addEventListener('click', function () {
+      var options = {};
+      $all('[data-export-key]').forEach(function (el) { options[el.getAttribute('data-export-key')] = el.value; });
+      showStatus('info', t('msg.working'));
+      callRuby('export', options);
+    });
     $('#language-select').addEventListener('change', function () {
       callRuby('set_locale', $('#language-select').value);
     });
@@ -689,6 +838,7 @@
   function applyLocale(msg, revalidate) {
     state.strings = msg.strings || state.strings;
     state.presets = msg.presets || state.presets;
+    state.ral = msg.ral || state.ral;
     state.locale = msg.locale || state.locale;
     applyStrings();
     document.documentElement.lang = state.locale;
@@ -706,6 +856,12 @@
       state.defaults = msg.defaults || {};
       state.lastUsed = msg.lastUsed || {};
       state.materials = msg.materials || [];
+      state.library = msg.library || [];
+      var exportOptions = msg.exportOptions || {};
+      $all('[data-export-key]').forEach(function (el) {
+        var value = exportOptions[el.getAttribute('data-export-key')];
+        if (value !== undefined) { el.value = typeof value === 'number' ? formatNumber(value) : value; }
+      });
       applyLocale(msg, false);
       $('#version').textContent = t('label.version', { version: msg.version || '' });
       state.category = 'base';
@@ -751,6 +907,18 @@
       updateMaterialButtons();
       var open = $('.material-picker:not([hidden])');
       if (open) { buildPicker(open.getAttribute('data-picker-for')); }
+    },
+
+    library: function (msg) {
+      state.library = msg.library || [];
+      // A newly added item is selected for the material being edited.
+      if (msg.added && state.libraryTarget) {
+        selectMaterial(state.libraryTarget, 'user:' + msg.added);
+      } else {
+        updateMaterialButtons();
+        var open = $('.material-picker:not([hidden])');
+        if (open) { buildPicker(open.getAttribute('data-picker-for')); }
+      }
     },
 
     locale: function (msg) {

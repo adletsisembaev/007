@@ -7,7 +7,7 @@
 1. Откройте SketchUp.
 2. Меню **Extensions → Extension Manager**.
 3. Нажмите **Install Extension** и выберите файл
-   `kitchen_cabinet_designer_1.1.0.rbz`.
+   `kitchen_cabinet_designer_1.2.0.rbz`.
 4. Подтвердите установку. Если SketchUp предложит, перезапустите его.
 5. Проверьте, что всё на месте:
    - появилось меню **Extensions → Kitchen Cabinet Designer**;

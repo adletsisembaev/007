@@ -87,7 +87,7 @@ module KitchenCabinetDesigner
           when 'top_panel' then parts << top_panel(m)
           when 'rails' then parts.concat(rails(m, params['rail_width']))
           end
-          parts << back(m) unless m.back_mode == 'none'
+          parts << back(m, params) unless m.back_mode == 'none'
           parts.concat(shelves(m, params))
           parts
         end
@@ -198,14 +198,16 @@ module KitchenCabinetDesigner
           ]
         end
 
-        def back(m)
+        def back(m, params)
           w = m.width
           t = m.thickness
           zc = m.z_bottom
           zt = m.z_top
           box =
             if m.back_mode == 'overlay'
-              Box.new(0, m.back_y0, zc, w, m.back_y1, zt)
+              side = params['back_offset_side'].to_f
+              Box.new(side, m.back_y0, zc + params['back_offset_bottom'].to_f,
+                      w - side, m.back_y1, zt - params['back_offset_top'].to_f)
             else
               e = m.back_overlap
               top_z = m.top == 'top_panel' ? zt - t + e : zt

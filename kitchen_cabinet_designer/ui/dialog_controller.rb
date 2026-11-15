@@ -10,7 +10,8 @@ module KitchenCabinetDesigner
   # field: init, params, validation, result, status.
   module DialogController
     CALLBACKS = %w[ready validate create_cabinet update_cabinet load_selected
-                   clear_target refresh_materials set_locale close].freeze
+                   clear_target refresh_materials set_locale library_add_color
+                   library_add_texture library_add_folder library_remove export close].freeze
 
     class << self
       # Opens the dialog (or brings it to front). With load_selection: true
@@ -65,6 +66,11 @@ module KitchenCabinetDesigner
         when 'clear_target'   then @edit_target = nil
         when 'refresh_materials' then send_materials
         when 'set_locale' then on_set_locale(payload)
+        when 'library_add_color' then on_library_add_color(parse_payload(payload))
+        when 'library_add_texture' then on_library_add_texture
+        when 'library_add_folder' then on_library_add_folder
+        when 'library_remove' then on_library_remove(payload)
+        when 'export' then on_export(parse_payload(payload))
         when 'close'          then @dialog&.close
         end
       end
@@ -111,7 +117,11 @@ module KitchenCabinetDesigner
           end,
           'defaults' => Settings::CATEGORIES.to_h { |c| [c, Settings.defaults(c)] },
           'lastUsed' => Settings::CATEGORIES.to_h { |c| [c, Settings.last_used(c)] }
-        }.merge(locale_payload).merge('materials' => Materials.list(Sketchup.active_model))
+        }.merge(locale_payload).merge(
+          'materials' => Materials.list(Sketchup.active_model),
+          'library' => UserLibrary.dialog_items,
+          'exportOptions' => Exporter.options
+        )
       end
 
       # Everything that depends on the interface language.
@@ -120,8 +130,63 @@ module KitchenCabinetDesigner
           'locale' => L10n.locale,
           'locales' => L10n::AVAILABLE,
           'strings' => L10n.strings,
-          'presets' => MaterialLibrary.dialog_presets
+          'presets' => MaterialLibrary.dialog_presets,
+          'ral' => RalColors.dialog_list
         }
+      end
+
+      # ---- user material library ------------------------------------------
+
+      def on_library_add_color(data)
+        item = UserLibrary.add_color(data['name'], data['color'])
+        send_library(item['id'])
+      rescue UserLibrary::Error
+        send_status('error', L10n.t('material.custom_invalid'))
+      end
+
+      IMAGE_FILTER = 'Images|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff||'
+
+      def on_library_add_texture
+        path = UI.openpanel(L10n.t('library.choose_image'), '', IMAGE_FILTER)
+        return if path.nil? || path.empty?
+
+        item = UserLibrary.add_texture(path)
+        send_library(item['id'])
+      rescue UserLibrary::Error, SystemCallError
+        send_status('error', L10n.t('library.bad_image'))
+      end
+
+      def on_library_add_folder
+        folder = UI.select_directory(title: L10n.t('library.choose_folder'))
+        return if folder.nil? || folder.empty?
+
+        items = UserLibrary.add_folder(folder)
+        if items.empty?
+          send_status('error', L10n.t('library.empty_folder'))
+        else
+          send_library(nil)
+          send_status('ok', L10n.t('library.added_count', count: items.size))
+        end
+      rescue SystemCallError
+        send_status('error', L10n.t('library.bad_image'))
+      end
+
+      def on_library_remove(payload)
+        id = payload.to_s.delete('"')
+        UserLibrary.remove(id)
+        send_library(nil)
+      end
+
+      def send_library(added_id)
+        send_message('type' => 'library', 'library' => UserLibrary.dialog_items, 'added' => added_id)
+      end
+
+      # ---- cut list / estimate --------------------------------------------
+
+      def on_export(options)
+        result = Exporter.run(Sketchup.active_model, options)
+        level = result['level'] || (result['ok'] ? 'ok' : 'error')
+        send_status(level, result['message'])
       end
 
       # Switches the language; the dialog re-labels itself without losing

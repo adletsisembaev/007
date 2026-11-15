@@ -29,7 +29,8 @@ class TestCarcassLayout < Minitest::Test
     assert_equal [16.0, 0.0, 100.0, 584.0, 556.0, 116.0], part(parts, 'BOTTOM').bounds.to_a
     assert_equal [16.0, 0.0, 804.0, 584.0, 100.0, 820.0], part(parts, 'RAIL_FRONT').bounds.to_a
     assert_equal [16.0, 456.0, 804.0, 584.0, 556.0, 820.0], part(parts, 'RAIL_REAR').bounds.to_a
-    assert_equal [0.0, 556.0, 100.0, 600.0, 560.0, 820.0], part(parts, 'BACK').bounds.to_a
+    # overlay HDF back, 2 mm short of the carcass outline on each side
+    assert_equal [2.0, 556.0, 102.0, 598.0, 560.0, 818.0], part(parts, 'BACK').bounds.to_a
   end
 
   def test_single_shelf_is_centred_in_interior

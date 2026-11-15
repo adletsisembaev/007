@@ -17,6 +17,8 @@ end
   l10n
   settings
   validation
+  ral_colors
+  user_library
   material_library
   geometry/part_spec
   geometry/carcass_layout
@@ -24,6 +26,8 @@ end
   geometry/wall_cabinet
   geometry/door_layout
   geometry/drawer_layout
+  geometry/cut_list
+  geometry/report
   geometry/layout
 ].each { |file| require File.join(KitchenCabinetDesigner::PLUGIN_ROOT, file) }
 

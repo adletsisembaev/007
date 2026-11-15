@@ -9,6 +9,8 @@ module KitchenCabinetDesigner
     l10n
     settings
     validation
+    ral_colors
+    user_library
     material_library
     geometry/part_spec
     geometry/carcass_layout
@@ -16,11 +18,14 @@ module KitchenCabinetDesigner
     geometry/wall_cabinet
     geometry/door_layout
     geometry/drawer_layout
+    geometry/cut_list
+    geometry/report
     geometry/layout
     sketchup/materials
     sketchup/panel_builder
     sketchup/placement
     sketchup/cabinet_builder
+    sketchup/exporter
     ui/dialog_controller
   ].each { |file| Sketchup.require(File.join(PLUGIN_ROOT, file)) }
 

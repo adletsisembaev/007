@@ -34,6 +34,16 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
       validate(j) { window.__calls.push(['validate', j]); rubyValidate(j).then(m => KCD.receive(JSON.parse(m))); },
       create_cabinet(j) { window.__calls.push(['create', j]); KCD.receive({type:'result', ok:true, message:'Created CABINET_600_BASE.', errors:[], warnings:[]}); },
       set_locale(j) { KCD.receive(locales[JSON.parse(j)]); },
+      library_add_color(j) {
+        const d = JSON.parse(j);
+        window.__calls.push(['library_add_color', j]);
+        KCD.receive({ type: 'library', added: 'fedcba987654', library: init.library.concat([
+          { id: 'fedcba987654', kind: 'color', name: d.name, color: d.color, texture: null }]) });
+      },
+      library_add_texture() { window.__calls.push(['library_add_texture']); },
+      library_add_folder() { window.__calls.push(['library_add_folder']); },
+      library_remove(j) { window.__calls.push(['library_remove', j]); },
+      export(j) { window.__calls.push(['export', j]); KCD.receive({ type: 'status', level: 'ok', message: 'exported' }); },
       refresh_materials() {}, load_selected() {}, close() {}, clear_target() {}, update_cabinet() {}
     };
   }, [init, locales]);
@@ -69,7 +79,7 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
   await page.click('[data-material-button="hardware_material"]');
   await page.fill('[data-picker-for="hardware_material"] .custom-color input[type="text"]', 'zz');
   await page.click('[data-picker-for="hardware_material"] .custom-color button');
-  const badHex = await page.textContent('[data-picker-for="hardware_material"] .field-error');
+  const badHex = await page.textContent('[data-picker-for="hardware_material"] .custom-color + .field-error');
   await page.fill('[data-picker-for="hardware_material"] .custom-color input[type="text"]', '2a6f97');
   await page.press('[data-picker-for="hardware_material"] .custom-color input[type="text"]', 'Enter');
   const afterCustom = await page.inputValue('#f-hardware_material');
@@ -84,6 +94,31 @@ const validate = j => new Promise(r => { waiting.push(r); rb.stdin.write(j + '\n
   locked.englishLabel = await page.textContent('[data-material-button="front_material"] .swatch-label');
   await page.selectOption('#language-select', 'ru');
   await page.waitForTimeout(300);
+  // v1.2: plinth follows fronts, RAL, own library, grain select, export
+  await page.selectOption('#f-cabinet_type', 'single_door');
+  await page.waitForTimeout(300);
+  locked.plinthLabel = await page.textContent('[data-material-button="plinth_material"] .swatch-label');
+  locked.plinthValue = await page.inputValue('#f-plinth_material');
+  locked.frontGrainVisible = await page.isVisible('#f-front_grain');
+  await page.click('[data-material-button="carcass_material"]');
+  await page.fill('[data-picker-for="carcass_material"] .ral-search', '7016');
+  locked.ralMatches = await page.$$eval('[data-picker-for="carcass_material"] .ral-grid .chip', c => c.map(x => x.title));
+  await page.click('[data-picker-for="carcass_material"] .ral-grid .chip');
+  locked.carcassRal = await page.inputValue('#f-carcass_material');
+  locked.carcassGrainVisible = await page.isVisible('#f-carcass_grain');
+  await page.click('[data-material-button="front_material"]');
+  locked.libraryChips = await page.$$eval('[data-picker-for="front_material"] .chip .chip-remove', c => c.length);
+  await page.fill('[data-picker-for="front_material"] .library-color input:not(.hex-input)', 'Sirca RAL-like 01');
+  await page.fill('[data-picker-for="front_material"] .library-color .hex-input', '5a7d6c');
+  await page.screenshot({ path: path.join(OUT, 'ui_library.png'), fullPage: false });
+  await page.click('[data-picker-for="front_material"] .library-color button');
+  locked.frontFromLibrary = await page.inputValue('#f-front_material');
+  locked.frontLabel = await page.textContent('[data-material-button="front_material"] .swatch-label');
+  locked.plinthFollows = await page.textContent('[data-material-button="plinth_material"] .swatch-label');
+  locked.hdfOffsetVisible = await page.isVisible('#f-back_offset_side');
+  await page.click('summary[data-i18n="section.export"]');
+  await page.click('#btn-export');
+  locked.exportCall = await page.evaluate(() => JSON.parse(window.__calls.filter(c => c[0] === 'export').pop()[1]));
   // corner cabinet
   await page.selectOption('#f-cabinet_type', 'corner');
   await page.waitForTimeout(700);

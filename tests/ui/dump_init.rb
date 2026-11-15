@@ -10,7 +10,7 @@ K = KitchenCabinetDesigner
 def locale_payload(code)
   K::L10n.locale = code
   { 'locale' => code, 'locales' => K::L10n::AVAILABLE, 'strings' => K::L10n.strings,
-    'presets' => K::MaterialLibrary.dialog_presets }
+    'presets' => K::MaterialLibrary.dialog_presets, 'ral' => K::RalColors.dialog_list(code) }
 end
 
 init = {
@@ -22,7 +22,11 @@ init = {
   'defaults' => K::Settings::CATEGORIES.to_h { |c| [c, K::Settings.defaults(c)] },
   'lastUsed' => K::Settings::CATEGORIES.to_h { |c| [c, K::Settings.defaults(c)] },
   'materials' => [{ 'name' => 'Egger W1000', 'color' => '#f2f1ec', 'textured' => false },
-                  { 'name' => 'KCD Дуб сонома', 'color' => '#d2b78e', 'textured' => true }]
+                  { 'name' => 'KCD Дуб сонома', 'color' => '#d2b78e', 'textured' => true }],
+  'library' => [{ 'id' => 'abc123def456', 'kind' => 'texture', 'name' => 'Egger H1145 ST10',
+                  'color' => '#bbbbbb', 'texture' => '../textures/oak_natural.jpg' }],
+  'exportOptions' => { 'sheet_length' => 2800.0, 'sheet_width' => 2070.0, 'waste_percent' => 15.0,
+                       'edge_allowance_percent' => 10.0, 'scope' => 'model' }
 }.merge(locale_payload('ru'))
 
 locales = %w[ru en].to_h { |c| [c, locale_payload(c).merge('type' => 'locale')] }

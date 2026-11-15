@@ -139,7 +139,7 @@ module KitchenCabinetDesigner
 
       def populate(model, definition, params, specs)
         materials = Materials.resolve(model, params, specs.map(&:material).uniq)
-        PanelBuilder.render(definition.entities, specs, materials)
+        PanelBuilder.render(definition.entities, specs, materials, Materials.grains(params))
         definition.description = description_for(params)
         write_params(definition, params)
       end
