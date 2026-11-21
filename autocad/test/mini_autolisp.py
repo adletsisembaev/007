@@ -163,6 +163,11 @@ class Interp:
             "NULL": lambda a: tb(not self.truthy(a)),
             "LIST": lambda *a: list(a), "CONS": cons, "CAR": car, "CDR": cdr,
             "CADR": lambda x: x[1] if x and len(x) > 1 else None, "NTH": nth,
+            "CADDR": lambda x: x[2] if x and len(x) > 2 else None,
+            "CDDR": lambda x: (x[2:] or None) if x else None,
+            "ATAN": lambda y, x=None: math.atan(y) if x is None else math.atan2(y, x),
+            "VL-SORT-I": lambda l, f: sorted(range(len(l)), key=lambda i: l[i]),
+            "VL-REMOVE": lambda v, l: [x for x in (l or []) if x != v] or None,
             "LENGTH": lambda l: len(l) if l else 0, "APPEND": lambda *a: sum([x or [] for x in a], []),
             "REVERSE": lambda l: list(reversed(l)) if l else None, "LAST": lambda l: l[-1] if l else None,
             "DISTANCE": lambda a, b: math.dist(a[:2], b[:2]) if len(a) == 2 or len(b) == 2 else math.dist(a, b),
@@ -234,7 +239,8 @@ class Interp:
         return ("SOLID", reg)
 
     def _boolean(self, a, op, b):
-        assert op == 2
+        assert op in (0, 2)
+        self.bools = getattr(self, "bools", 0) + 1
         return None
 
     def _rot(self, obj, p1, p2, ang):

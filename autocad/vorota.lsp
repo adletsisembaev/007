@@ -6,7 +6,8 @@
 ;;;
 ;;;  Что делает:
 ;;;   * спрашивает ширину, высоту ворот, толщину металла и узор (9 вариантов);
-;;;   * делит ворота на панели под размер листа (по умолчанию 1500x3000);
+;;;   * делит на листы (по умолчанию 1500x3000) так, что край листа идёт по
+;;;     полосе узора (зигзагом) — стык спереди не виден; соединение — лапками сзади;
 ;;;   * чертит РАЗВЁРТКУ для лазера (слой REZ — всё режется):
 ;;;       - лучи от центра ячейки к углам — сквозной рез (лепестки);
 ;;;       - стороны ячейки — пунктир-прорез с перемычками (петельками) — линия гиба;
@@ -210,7 +211,9 @@
     (setq i -2)
     (while (<= i (+ 1 (fix (/ rw sz))))
       (setq x (+ (* i sz) (if (= (rem (+ j 100) 2) 1) (/ sz 2.0) 0.0)) y (* j hb))
-      (setq res (cons (list (list x y) (list (+ x sz) y) (list (+ x sz) (+ y hb)) (list x (+ y hb))) res))
+      ;; средние точки сверху/снизу — там стыкуются кирпичи соседнего ряда
+      (setq res (cons (list (list x y) (list (+ x (/ sz 2.0)) y) (list (+ x sz) y) (list (+ x sz) (+ y hb))
+                            (list (+ x (/ sz 2.0)) (+ y hb)) (list x (+ y hb))) res))
       (setq i (1+ i))
     )
     (setq j (1+ j))
@@ -294,14 +297,6 @@
   )
   (abs (/ s 2.0))
 )
-;; узор на всю площадь ворот (сквозной через стыки листов), уже с полосой strip
-(defun vr:pattern (pat gw gh sz strip / res c)
-  (foreach poly (vr:gen pat gw gh sz)
-    (setq c (vr:shrink poly strip))
-    (if c (setq res (cons c res)))
-  )
-  res
-)
 ;; убрать слишком короткие стороны (после обрезки у края), чтобы не было узких лепестков
 (defun vr:merge-short (pts mine / changed n i res)
   (setq changed T)
@@ -309,7 +304,7 @@
     (setq changed nil n (length pts) i 0 res nil)
     (while (< i n)
       (if (and (not changed) (< (distance (nth i pts) (nth (rem (1+ i) n) pts)) mine))
-        (setq changed T)                       ; пропускаем вершину i
+        (setq changed T)
         (setq res (cons (nth i pts) res))
       )
       (setq i (1+ i))
@@ -318,84 +313,188 @@
   )
   pts
 )
-;; ячейки одной панели: обрезка узора по полю панели; координаты от угла панели.
-;; Каждая ячейка = (центр . вершины): от центра режутся лучи к вершинам.
-(defun vr:cells (pattern x0 y0 pw ph brd / res c a0 cen cc)
-  (foreach poly pattern
-    (setq a0 (vr:area poly) cen (vr:center poly))
-    (setq c (vr:clip-rect poly (+ x0 brd) (+ y0 brd) (- (+ x0 pw) brd) (- (+ y0 ph) brd)))
-    (if c (setq c (vr:merge-short c 20.0)))
-    (if (and c (>= (length c) 3) (>= (vr:area c) (* 0.3 a0)))
-      (progn
-        ;; центр: исходный, если он внутри обрезанной ячейки с запасом 15 мм, иначе центр обрезка
-        (setq cc (vr:center c))
-        (if (and (> (car cen) (+ x0 brd 15.0)) (< (car cen) (- (+ x0 pw) brd 15.0))
-                 (> (cadr cen) (+ y0 brd 15.0)) (< (cadr cen) (- (+ y0 ph) brd 15.0)))
-          (setq cc cen)
+;; убрать вершины, лежащие на прямой (средние точки кирпичей)
+(defun vr:simplify (pts / n i a b c res)
+  (setq n (length pts) i 0)
+  (while (< i n)
+    (setq a (nth (rem (+ i n -1) n) pts) b (nth i pts) c (nth (rem (1+ i) n) pts))
+    (if (> (abs (- (* (- (car b) (car a)) (- (cadr c) (cadr b)))
+                   (* (- (cadr b) (cadr a)) (- (car c) (car b))))) 1e-6)
+      (setq res (cons b res))
+    )
+    (setq i (1+ i))
+  )
+  (reverse res)
+)
+;; ячейка = (центр . вершины): от центра режутся лучи к вершинам, стороны — гиб
+(defun vr:make-cell (core strip gw gh brd / sh a0 cen c cc)
+  (setq sh (vr:shrink core strip))
+  (if sh
+    (progn
+      (setq a0 (vr:area sh) cen (vr:center sh))
+      (setq c (vr:clip-rect sh brd brd (- gw brd) (- gh brd)))
+      (if c (setq c (vr:merge-short c 20.0)))
+      (if (and c (>= (length c) 3) (>= (vr:area c) (* 0.3 a0)))
+        (progn
+          (setq cc (vr:center c))
+          (if (and (> (car cen) (+ brd 15.0)) (< (car cen) (- gw brd 15.0))
+                   (> (cadr cen) (+ brd 15.0)) (< (cadr cen) (- gh brd 15.0)))
+            (setq cc cen)
+          )
+          (cons cc c)
         )
-        (setq res (cons (cons (vr:v- cc (list x0 y0)) (vr:move c (list (- x0) (- y0)))) res))
+      )
+    )
+  )
+)
+;; Раскрой на листы: каждая плитка узора целиком уходит в один лист (по её центру).
+;; Край листа идёт по середине полосы металла между ячейками -> стык не виден.
+;; Результат: список (номер_листа плитка_обрезанная_по_воротам ячейка)
+(defun vr:build (pat gw gh sz strip brd cols rows pw ph / res core cen clip ci ri)
+  (foreach tile (vr:gen pat gw gh sz)
+    (setq core (vr:simplify tile) cen (vr:center core))
+    (setq clip (vr:clip-rect tile 0.0 0.0 gw gh))
+    (if (and clip (>= (length clip) 3) (> (vr:area clip) 1.0))
+      (progn
+        (setq ci (max 0 (min (1- cols) (fix (/ (car cen) pw))))
+              ri (max 0 (min (1- rows) (fix (/ (cadr cen) ph)))))
+        (setq res (cons (list (+ ci (* ri cols)) clip (vr:make-cell core strip gw gh brd)) res))
       )
     )
   )
   res
+)
+(defun vr:panel-data (data pidx / res)
+  (foreach d data (if (= (car d) pidx) (setq res (cons d res))))
+  res
+)
+(defun vr:bbox (polys / minx miny maxx maxy)
+  (setq minx 1e30 miny 1e30 maxx -1e30 maxy -1e30)
+  (foreach poly polys
+    (foreach p poly
+      (setq minx (min minx (car p)) maxx (max maxx (car p))
+            miny (min miny (cadr p)) maxy (max maxy (cadr p)))
+    )
+  )
+  (list minx miny maxx maxy)
+)
+
+;;; ---------------------------------------------------------------- контур листа
+(defun vr:key (p)
+  (strcat (itoa (fix (+ (* (car p) 10.0) 10000000.5))) ","
+          (itoa (fix (+ (* (cadr p) 10.0) 10000000.5))))
+)
+;; контур объединения плиток: стороны, которые встречаются дважды (общие), сокращаются
+(defun vr:boundary (polys / edges keys idx res n i ka kb)
+  (foreach poly polys
+    (setq n (length poly) i 0)
+    (while (< i n)
+      (setq edges (cons (list (nth i poly) (nth (rem (1+ i) n) poly)) edges))
+      (setq i (1+ i))
+    )
+  )
+  (setq keys (mapcar '(lambda (e)
+                        (setq ka (vr:key (car e)) kb (vr:key (cadr e)))
+                        (if (< ka kb) (strcat ka "|" kb) (strcat kb "|" ka)))
+                     edges))
+  (setq idx (vl-sort-i keys '<))
+  (while idx
+    (if (and (cadr idx) (= (nth (car idx) keys) (nth (cadr idx) keys)))
+      (setq idx (cddr idx))
+      (setq res (cons (nth (car idx) edges) res) idx (cdr idx))
+    )
+  )
+  res
+)
+(defun vr:outer-p (e gw gh / a b)
+  (setq a (car e) b (cadr e))
+  (or (and (< (abs (car a)) 0.05) (< (abs (car b)) 0.05))
+      (and (< (abs (- (car a) gw)) 0.05) (< (abs (- (car b) gw)) 0.05))
+      (and (< (abs (cadr a)) 0.05) (< (abs (cadr b)) 0.05))
+      (and (< (abs (- (cadr a) gh)) 0.05) (< (abs (- (cadr b) gh)) 0.05)))
+)
+(defun vr:unit (a) (vr:v* a (/ 1.0 (sqrt (+ (* (car a) (car a)) (* (cadr a) (cadr a)))))))
+(defun vr:turn (u1 u2)
+  (atan (- (* (car u1) (cadr u2)) (* (cadr u1) (car u2)))
+        (+ (* (car u1) (car u2)) (* (cadr u1) (cadr u2))))
+)
+(defun vr:find-edge (pt bedges startp / res)
+  (foreach e bedges
+    (if (< (distance (if startp (car e) (cadr e)) pt) 0.05) (setq res e))
+  )
+  res
+)
+;; отступ лапки от угла, чтобы соседние лапки не налезали (alpha — внешний угол)
+(defun vr:clear (alpha td)
+  (if (< alpha (- pi 0.01)) (+ (/ td (vr:tan (/ alpha 2.0))) 2.0) 2.0)
+)
+;; лапка на стороне стыка: трапеция наружу от листа, гнётся на 90 назад
+(defun vr:tab (e bedges td / a b u n pe ne e0 e1 ln)
+  (setq a (car e) b (cadr e) ln (distance a b)
+        u (vr:unit (vr:v- b a)) n (list (cadr u) (- (car u))))
+  (setq pe (vr:find-edge a bedges nil) ne (vr:find-edge b bedges T))
+  (setq e0 (if pe (vr:clear (+ pi (vr:turn (vr:unit (vr:v- (cadr pe) (car pe))) u)) td) 2.0))
+  (setq e1 (if ne (vr:clear (+ pi (vr:turn u (vr:unit (vr:v- (cadr ne) (car ne))))) td) 2.0))
+  (if (> ln (+ e0 e1 (* 2.0 td) 10.0))
+    (list (vr:v+ a (vr:v* u e0))
+          (vr:v+ (vr:v+ a (vr:v* u (+ e0 td))) (vr:v* n td))
+          (vr:v+ (vr:v- b (vr:v* u (+ e1 td))) (vr:v* n td))
+          (vr:v- b (vr:v* u e1)))
+  )
 )
 
 ;;; ---------------------------------------------------------------- развёртка
 (defun vr:circle (c r lay)
   (entmake (list '(0 . "CIRCLE") (cons 8 lay) (cons 10 (vr:p3 c)) (cons 40 r)))
 )
-;; развёртка панели: лицевая часть pw x ph + отбортовка fl по периметру (гиб 90 назад)
-(defun vr:flat (cells pw ph org br dsh fl bolt / o n i a b m u ln c k lim step cnt poly cell)
-  (setq o (list (list 0.0 (- fl)) (list pw (- fl)) (list pw 0.0) (list (+ pw fl) 0.0)
-                (list (+ pw fl) ph) (list pw ph) (list pw (+ ph fl)) (list 0.0 (+ ph fl))
-                (list 0.0 ph) (list (- fl) ph) (list (- fl) 0.0) (list 0.0 0.0)))
-  (setq o (vr:move o org) n (length o))
-  ;; наружный контур: перемычки на 4 длинных сторонах (держат деталь в листе)
-  (setq lim (* 0.5 (min pw ph)) i 0)
-  (while (< i n)
-    (setq a (nth i o) b (nth (rem (1+ i) n) o) ln (distance a b))
-    (if (> ln lim)
-      (progn
-        (setq m (vr:v* (vr:v+ a b) 0.5) u (vr:v* (vr:v- b a) (/ 1.0 ln)))
-        (vr:line a (vr:v- m (vr:v* u (/ br 2.0))) "REZ")
-        (vr:line (vr:v+ m (vr:v* u (/ br 2.0))) b "REZ")
-      )
-      (vr:line a b "REZ")
-    )
-    (setq i (1+ i))
-  )
-  ;; линии гиба отбортовки
-  (setq c (list org (vr:v+ org (list pw 0.0)) (vr:v+ org (list pw ph)) (vr:v+ org (list 0.0 ph))) i 0)
-  (while (< i 4)
-    (vr:dashes (nth i c) (nth (rem (1+ i) 4) c) dsh br "REZ")
-    (setq i (1+ i))
-  )
-  ;; отверстия под болты М8 в отбортовке (соединение листов между собой и с рамой)
-  (if (= bolt 1)
+(defun vr:cut-bridge (a b br / ln m u)
+  (setq ln (distance a b))
+  (if (> ln 300.0)
     (progn
-      (foreach side (list (list (list 0.0 (- (/ fl 2.0))) (list pw (- (/ fl 2.0))))
-                          (list (list 0.0 (+ ph (/ fl 2.0))) (list pw (+ ph (/ fl 2.0))))
-                          (list (list (- (/ fl 2.0)) 0.0) (list (- (/ fl 2.0)) ph))
-                          (list (list (+ pw (/ fl 2.0)) 0.0) (list (+ pw (/ fl 2.0)) ph)))
-        (setq a (car side) b (cadr side) ln (distance a b))
-        (setq cnt (max 2 (1+ (fix (+ 0.5 (/ (- ln 120.0) 300.0))))))
-        (setq step (/ (- ln 120.0) (1- cnt)) k 0)
-        (while (< k cnt)
-          (vr:circle (vr:v+ org (vr:v+ a (vr:v* (vr:v- b a) (/ (+ 60.0 (* k step)) ln)))) 4.25 "REZ")
-          (setq k (1+ k))
+      (setq m (vr:v* (vr:v+ a b) 0.5) u (vr:v* (vr:v- b a) (/ 1.0 ln)))
+      (vr:line a (vr:v- m (vr:v* u (/ br 2.0))) "REZ")
+      (vr:line (vr:v+ m (vr:v* u (/ br 2.0))) b "REZ")
+    )
+    (vr:line a b "REZ")
+  )
+)
+;; развёртка одного листа; координаты — как на воротах, сдвиг org
+(defun vr:flat (cells bedges org br dsh td bolt gw gh / a b tb mv poly c n k ntab)
+  (setq mv (list org) ntab 0)
+  (foreach e bedges
+    (setq a (vr:v+ (car e) org) b (vr:v+ (cadr e) org))
+    (if (vr:outer-p e gw gh)
+      (vr:cut-bridge a b br)                               ; внешний край ворот
+      (progn                                               ; стык с соседним листом
+        (setq tb (vr:tab e bedges td))
+        (if tb
+          (progn
+            (setq tb (vr:move tb org) ntab (1+ ntab))
+            (vr:line a (nth 0 tb) "REZ")
+            (vr:line (nth 0 tb) (nth 1 tb) "REZ")
+            (vr:line (nth 1 tb) (nth 2 tb) "REZ")
+            (vr:line (nth 2 tb) (nth 3 tb) "REZ")
+            (vr:line (nth 3 tb) b "REZ")
+            (vr:dashes (nth 0 tb) (nth 3 tb) dsh br "REZ")  ; гиб лапки 90 назад
+            (if (= bolt 1)
+              (vr:circle (vr:v* (vr:v+ (vr:v+ (nth 0 tb) (nth 3 tb)) (vr:v+ (nth 1 tb) (nth 2 tb))) 0.25)
+                         3.25 "REZ")                       ; отверстие под М6
+            )
+          )
+          (vr:line a b "REZ")
         )
       )
     )
   )
-  ;; ячейки: лучи — сквозной рез, стороны — пунктир (гиб)
   (foreach cell cells
     (setq poly (vr:move (cdr cell) org) c (vr:v+ (car cell) org) n (length poly) k 0)
     (while (< k n)
-      (vr:line c (nth k poly) "REZ")
-      (vr:dashes (nth k poly) (nth (rem (1+ k) n) poly) dsh br "REZ")
+      (vr:line c (nth k poly) "REZ")                                    ; луч — сквозной рез
+      (vr:dashes (nth k poly) (nth (rem (1+ k) n) poly) dsh br "REZ")   ; сторона — гиб
       (setq k (1+ k))
     )
   )
+  ntab
 )
 
 ;;; ---------------------------------------------------------------- 3D
@@ -414,37 +513,36 @@
   (vla-put-layer sol lay)
   sol
 )
-(defun vr:3d-panel (cells pw ph org th ang fl / plate hole poly c n k a b sol z rot x0 y0 cell)
-  ;; лист с вырезами под ячейки
-  (setq plate (vr:region (list org (vr:v+ org (list pw 0.0)) (vr:v+ org (list pw ph))
-                               (vr:v+ org (list 0.0 ph)))))
-  (foreach cell cells
-    (setq hole (vr:region (vr:move (cdr cell) org)))
-    (vla-Boolean plate 2 hole)                 ; 2 = вычитание
-  )
+(defun vr:cross-z (a b c)
+  (- (* (- (car b) (car a)) (- (cadr c) (cadr a))) (* (- (cadr b) (cadr a)) (- (car c) (car a))))
+)
+(defun vr:3d-panel (tiles cells bedges th ang td gw gh / plate poly c n k a b sol rot tb)
+  ;; лист = объединение плиток минус ячейки
+  (setq plate (vr:region (car tiles)))
+  (foreach poly (cdr tiles) (vla-Boolean plate 0 (vr:region poly)))      ; 0 = объединение
+  (foreach cell cells (vla-Boolean plate 2 (vr:region (cdr cell))))      ; 2 = вычитание
   (setq sol (vla-AddExtrudedSolid *vr-ms* plate th 0.0))
   (vla-delete plate)
   (vla-put-layer sol "VOROTA_3D")
-  ;; отбортовка: загнута назад на 90 градусов
-  (setq x0 (car org) y0 (cadr org))
-  (foreach bx (list (list x0 y0 (+ x0 pw) (+ y0 th))
-                    (list x0 (- (+ y0 ph) th) (+ x0 pw) (+ y0 ph))
-                    (list x0 y0 (+ x0 th) (+ y0 ph))
-                    (list (- (+ x0 pw) th) y0 (+ x0 pw) (+ y0 ph)))
-    (vla-put-layer (vr:box (nth 0 bx) (nth 1 bx) (nth 2 bx) (nth 3 bx) (- fl) 0.0) "VOROTA_3D")
-  )
   ;; лепестки, отогнутые наружу по сторонам ячейки
   (foreach cell cells
-    (setq poly (vr:move (cdr cell) org) c (vr:v+ (car cell) org) n (length poly) k 0)
+    (setq poly (cdr cell) c (car cell) n (length poly) k 0)
     (while (< k n)
       (setq a (nth k poly) b (nth (rem (1+ k) n) poly))
       (setq sol (vr:extrude (list c a b) th "VOROTA_3D"))
-      ;; знак поворота: вершина лепестка должна уйти вперёд (+Z)
-      (setq z (- (* (- (car b) (car a)) (- (cadr c) (cadr a)))
-                 (* (- (cadr b) (cadr a)) (- (car c) (car a)))))
-      (setq rot (if (> z 0) ang (- ang)))
+      (setq rot (if (> (vr:cross-z a b c) 0) ang (- ang)))       ; вершина лепестка -> вперёд (+Z)
       (vla-Rotate3D sol (vlax-3d-point (vr:p3 a)) (vlax-3d-point (vr:p3 b)) rot)
       (setq k (1+ k))
+    )
+  )
+  ;; лапки стыков — загнуты на 90 назад (-Z)
+  (foreach e bedges
+    (if (and (not (vr:outer-p e gw gh)) (setq tb (vr:tab e bedges td)))
+      (progn
+        (setq sol (vr:extrude tb th "VOROTA_3D"))
+        (setq rot (if (> (vr:cross-z (nth 0 tb) (nth 3 tb) (nth 1 tb)) 0) (/ pi -2.0) (/ pi 2.0)))
+        (vla-Rotate3D sol (vlax-3d-point (vr:p3 (nth 0 tb))) (vlax-3d-point (vr:p3 (nth 3 tb))) rot)
+      )
     )
   )
 )
@@ -456,7 +554,7 @@
   b
 )
 (defun vr:frame (gw gh cols rows pw ph tw td z0 / i)
-  ;; профильная труба tw (в плоскости ворот) x td (в глубину), за листом
+  ;; профильная труба tw (в плоскости) x td (в глубину), за листом и лапками
   (vr:box 0.0 0.0 gw tw (- z0 td) z0)
   (vr:box 0.0 (- gh tw) gw gh (- z0 td) z0)
   (setq i 0)
@@ -474,7 +572,8 @@
 
 ;;; ---------------------------------------------------------------- команда
 (defun vr:main (/ *error* doc gw gh th pat sz ang br dsh strip brd sw sl mk3d mkfr dflt
-                  cols rows pw ph cells pattern fl bolt ci ri org n i mass oldecho)
+                  cols rows pw ph data pd tiles cells bedges bb td bolt ok n i k mass oldecho
+                  ci ri sx sy org ntab)
   (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))
         *vr-ms* (vla-get-ModelSpace doc))
   (defun *error* (msg)
@@ -484,27 +583,26 @@
     (vla-EndUndoMark doc)
     (princ)
   )
-  (princ "\n=== ВОРОТА: лист с узором из отгибных лепестков ===")
-  (setq gw (vr:num "Ширина ворот, мм" 4000.0)
-        gh (vr:num "Высота ворот, мм" 2000.0)
+  (princ "\n=== ВОРОТА / ЗАБОР / ПОТОЛОК: лист с узором из отгибных лепестков ===")
+  (setq gw (vr:num "Ширина, мм" 4000.0)
+        gh (vr:num "Высота, мм" 2000.0)
         th (vr:num "Толщина металла, мм" 2.0))
   (princ "\nУзоры:")
   (setq i 0)
   (foreach nm *vr-names* (setq i (1+ i)) (princ (strcat "  " (itoa i) "-" nm)))
   (setq pat (vr:int "Выберите узор [1-9]" 1 6 1 9))
-  ;; размер ячейки по умолчанию для каждого узора
   (setq sz (vr:num "Размер ячейки, мм" (nth (1- pat) '(200.0 230.0 180.0 220.0 220.0 200.0 260.0 160.0 200.0))))
   ;; линии гиба (петельки) — спрашиваем всегда
   (setq br  (vr:num "Петелька (перемычка на линии гиба), мм" 2.0)
         dsh (vr:num "Прорез между петельками, мм" 10.0)
         ang (vr:num "Угол отгиба лепестков, град" 35.0))
-  (setq bolt (vr:int "Соединение листов: 1-болты М8 через отбортовку, 2-сварка (без отверстий)" 1 6 1 2))
+  (setq bolt (vr:int "Соединение листов: 1-болты М6 через лапки сзади, 2-сварка лапок (без отверстий)" 1 6 1 2))
   (setq dflt (vr:int "Остальные параметры по умолчанию? 1-да, 0-нет" 1 4 0 1))
-  (setq strip 14.0 brd 15.0 fl 30.0 sw 1500.0 sl 3000.0 mk3d 1 mkfr 1)
+  (setq strip 20.0 brd 20.0 td 20.0 sw 1500.0 sl 3000.0 mk3d 1 mkfr 1)
   (if (= dflt 0)
     (setq strip (vr:num "Металл между ячейками, мм" strip)
-          brd   (vr:num "Ровное поле по краю панели, мм" brd)
-          fl    (vr:num "Отбортовка (загиб назад) для соединения, мм" fl)
+          brd   (vr:num "Ровное поле по внешнему краю, мм" brd)
+          td    (vr:num "Лапка соединения листов (загиб назад), мм" td)
           sw    (vr:num "Лист: ширина, мм" sw)
           sl    (vr:num "Лист: длина, мм" sl)
           mk3d  (vr:int "Строить 3D-модель? 1-да, 0-нет" mk3d 4 0 1)
@@ -518,65 +616,70 @@
   (vr:layer "TEXT" 5)
   (vr:layer "VOROTA_3D" 9)
   (vr:layer "VOROTA_RAMA" 250)
-  ;; панели под размер листа (лист ставится вертикально: sw по ширине, sl по высоте)
-  (setq cols (fix (+ 0.999999 (/ gw (- sw (* 2.0 fl) 10.0))))
-        rows (fix (+ 0.999999 (/ gh (- sl (* 2.0 fl) 10.0))))
-        pw (/ gw cols) ph (/ gh rows))
-  (setq pattern (vr:pattern pat gw gh sz strip))
-  (if (null pattern)
-    (princ "\nУзор не построен: уменьшите размер ячейки.")
-    (progn
-      (setq n (* cols rows) i 0)
-      ;; --- развёртки: ниже 3D-модели, каждая панель на своём листе
-      (setq ri 0)
-      (while (< ri rows)
-        (setq ci 0)
-        (while (< ci cols)
-          (setq i (1+ i))
-          (setq org (list (* ci (+ sw 300.0)) (- (+ (* ri (+ sl 600.0)) sl 800.0))))
-          (setq cells (vr:cells pattern (* ci pw) (* ri ph) pw ph brd))
-          (vr:rect (- (car org) fl 5.0) (- (cadr org) fl 5.0) sw sl "LIST")
-          (vr:text (list (car org) (+ (cadr org) sl 40.0)) 60.0
-                   (strcat "ЛИСТ " (itoa i) "/" (itoa n) "  " (rtos sw 2 0) "x" (rtos sl 2 0)
-                           "  t=" (rtos th 2 1) "  панель " (rtos pw 2 0) "x" (rtos ph 2 0)
-                           "  " (nth (1- pat) *vr-names*))
-                   "TEXT")
-          (vr:flat cells pw ph org br dsh fl bolt)
-          (setq ci (1+ ci))
-        )
-        (setq ri (1+ ri))
+  ;; раскрой: подбираем число листов, чтобы каждый (с лапками) влез в лист
+  (setq cols (max 1 (fix (+ 0.999999 (/ gw (- sw 40.0)))))
+        rows (max 1 (fix (+ 0.999999 (/ gh (- sl 40.0))))))
+  (princ "\nСчитаю раскрой...")
+  (while (and (not ok) (< (+ cols rows) 60))
+    (setq pw (/ gw cols) ph (/ gh rows) ok T)
+    (setq data (vr:build pat gw gh sz strip brd cols rows pw ph))
+    (setq k 0)
+    (while (and ok (< k (* cols rows)))
+      (setq bb (vr:bbox (mapcar 'cadr (vr:panel-data data k))))
+      (cond
+        ((> (+ (- (nth 2 bb) (nth 0 bb)) (* 2.0 td) 20.0) sw) (setq cols (1+ cols) ok nil))
+        ((> (+ (- (nth 3 bb) (nth 1 bb)) (* 2.0 td) 20.0) sl) (setq rows (1+ rows) ok nil))
       )
-      ;; --- 3D
-      (if (= mk3d 1)
-        (progn
-          (princ "\nСтрою 3D-модель, подождите...")
-          (setq ri 0)
-          (while (< ri rows)
-            (setq ci 0)
-            (while (< ci cols)
-              (vr:3d-panel (vr:cells pattern (* ci pw) (* ri ph) pw ph brd)
-                           pw ph (list (* ci pw) (* ri ph)) th (* ang (/ pi 180.0)) fl)
-              (setq ci (1+ ci))
-            )
-            (setq ri (1+ ri))
-          )
-          (if (= mkfr 1) (vr:frame gw gh cols rows pw ph 60.0 40.0 (- fl)))
-          (vr:text (list 0.0 (+ gh 80.0)) 80.0
-                   (strcat "ВОРОТА " (rtos gw 2 0) "x" (rtos gh 2 0) ", узор "
-                           (nth (1- pat) *vr-names*) ", лепестки " (rtos ang 2 0) " град")
-                   "TEXT")
-        )
-      )
-      (setq mass (* (+ (* gw gh) (* n 2.0 fl (+ pw ph))) th 7.85e-6))
-      (princ (strcat "\nГотово. Панелей (листов): " (itoa n)
-                     ", панель " (rtos pw 2 0) "x" (rtos ph 2 0)
-                     ", лист с отбортовкой " (rtos (+ pw fl fl) 2 0) "x" (rtos (+ ph fl fl) 2 0)
-                     ", масса листа ~" (rtos mass 2 0) " кг (без рамы)."))
-      (princ "\nДля лазера: выгрузите слой REZ (слои LIST и TEXT отключите) — всё на REZ режется.")
-      (princ "\nСмотреть 3D: команда -VIEW (-ВИД) -> ЮЗизо, стиль: ВИЗСТИЛИ -> Концептуальный.")
-      (vla-ZoomExtents (vlax-get-acad-object))
+      (setq k (1+ k))
     )
   )
+  (setq n (* cols rows) ntab 0)
+  ;; --- развёртки: ниже модели, каждый лист в своей рамке
+  (setq k 0)
+  (while (< k n)
+    (setq ci (rem k cols) ri (/ k cols))
+    (setq pd (vr:panel-data data k)
+          tiles (mapcar 'cadr pd)
+          cells (vl-remove nil (mapcar 'caddr pd))
+          bedges (vr:boundary tiles)
+          bb (vr:bbox tiles))
+    (setq sx (* ci (+ sw 300.0)) sy (- (+ (* ri (+ sl 600.0)) sl 800.0)))
+    (setq org (list (- (+ sx td 10.0) (nth 0 bb)) (- (+ sy td 10.0) (nth 1 bb))))
+    (vr:rect sx sy sw sl "LIST")
+    (vr:text (list sx (+ sy sl 40.0)) 60.0
+             (strcat "ЛИСТ " (itoa (1+ k)) "/" (itoa n) "  " (rtos sw 2 0) "x" (rtos sl 2 0)
+                     "  t=" (rtos th 2 1) "  " (nth (1- pat) *vr-names*))
+             "TEXT")
+    (setq ntab (+ ntab (vr:flat cells bedges org br dsh td bolt gw gh)))
+    (setq k (1+ k))
+  )
+  ;; --- 3D
+  (if (= mk3d 1)
+    (progn
+      (princ "\nСтрою 3D-модель, подождите...")
+      (setq k 0)
+      (while (< k n)
+        (setq pd (vr:panel-data data k)
+              tiles (mapcar 'cadr pd)
+              cells (vl-remove nil (mapcar 'caddr pd)))
+        (vr:3d-panel tiles cells (vr:boundary tiles) th (* ang (/ pi 180.0)) td gw gh)
+        (setq k (1+ k))
+      )
+      (if (= mkfr 1) (vr:frame gw gh cols rows pw ph 60.0 40.0 (- td)))
+      (vr:text (list 0.0 (+ gh 80.0)) 80.0
+               (strcat (rtos gw 2 0) "x" (rtos gh 2 0) ", узор "
+                       (nth (1- pat) *vr-names*) ", лепестки " (rtos ang 2 0) " град")
+               "TEXT")
+    )
+  )
+  (setq mass (* gw gh th 7.85e-6))
+  (princ (strcat "\nГотово. Листов: " (itoa n) " (" (itoa cols) " x " (itoa rows) ")"
+                 ", лапок на стыках: " (itoa ntab)
+                 ", масса металла ~" (rtos mass 2 0) " кг (без рамы)."))
+  (princ "\nСтыки идут по полосам узора (зигзаг) — спереди не видны. Лапки загнуть назад 90 и стянуть.")
+  (princ "\nДля лазера: выгрузите слой REZ (слои LIST и TEXT отключите) — всё на REZ режется.")
+  (princ "\nСмотреть 3D: команда -VIEW (-ВИД) -> ЮЗизо, стиль: ВИЗСТИЛИ -> Концептуальный.")
+  (vla-ZoomExtents (vlax-get-acad-object))
   (setvar "CMDECHO" oldecho)
   (vla-EndUndoMark doc)
   (princ)
