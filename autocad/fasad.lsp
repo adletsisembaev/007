@@ -213,8 +213,21 @@
 ;;; ---------------------------------------------------------------- развёртка модуля
 ;; base — основание (CCW), apex — вершина (x y), dep — глубина (со знаком)
 ;; Возврат: (контур линии_гиба отверстия точка_подписи углы)
-(defun fs:net (base apex dep fl rl perf pitch hd pm hole / n st b a3 b3 angs gap th rays i ln L0 x y u nr
-                 out bends holes nrm fn k dih flb cx cy pts row xs ys tri m lab bk)
+;; паз-ключ (замочная скважина): широкое отверстие R + узкий паз ширины 2a длиной ls вверх (v)
+(defun fs:keyhole (c v rr a ls / th0 as pts k ang e)
+  (setq th0 (atan (cadr v) (car v)) as (atan a (sqrt (- (* rr rr) (* a a)))) k 0)
+  (while (<= k 16)
+    (setq ang (+ th0 as (* k (/ (- (* 2.0 pi) (* 2.0 as)) 16.0))))
+    (setq pts (cons (fs:v+ c (list (* rr (cos ang)) (* rr (sin ang)))) pts) k (1+ k)))
+  (setq e (fs:v+ c (fs:v* v ls)) k 0)
+  (while (<= k 8)
+    (setq ang (+ th0 (/ pi -2.0) (* k (/ pi 8.0))))
+    (setq pts (cons (fs:v+ e (list (* a (cos ang)) (* a (sin ang)))) pts) k (1+ k)))
+  (reverse pts)
+)
+;; hang: 1-пазы-ключи (надеть), 2-отверстия, 0-нет;  lock: 1-шов без сварки (нахлёст+ушко), 2-сварка
+(defun fs:net (base apex dep fl rl perf pitch hd pm hang lock / n st b a3 b3 angs gap th rays i ln L0 x y u nr
+                 out bends holes nrm fn k dih flb cx cy pts row xs ys tri m lab bk d3 upk kh ear e nt w s0 s1 tt)
   (setq n (length base) st 0 i 1)
   (while (< i n)                                            ; шов — к самой нижней вершине
     (if (< (cadr (nth i base)) (- (cadr (nth st base)) 1e-6)) (setq st i))
@@ -242,20 +255,41 @@
     (if (< (* (caddr nrm) dep) 0) (setq nrm (fs:v* nrm -1.0)))
     (setq fn (append fn (list nrm)) i (1+ i))
   )
-  (setq out (list '(0.0 0.0)) bends nil holes nil i 0)
+  (setq ear 30.0
+        ear (if (and (= lock 1) (> (* gap (fs:len (nth n rays))) (+ ear fl 15.0))) ear nil))
+  (setq out (list '(0.0 0.0)) bends nil holes nil kh nil i 0)
   (while (< i n)
     (setq x (nth i rays) y (nth (1+ i) rays) ln (distance x y) u (fs:v* (fs:v- y x) (/ 1.0 ln)))
     (setq nr (list (cadr u) (- (car u))))
     (if (< (fs:dot nr (fs:v* (fs:v+ x y) 0.5)) 0) (setq nr (fs:v* nr -1.0)))
-    (setq out (append out (list x (fs:v+ x (fs:v* u rl)) (fs:v+ (fs:v+ x (fs:v* u rl)) (fs:v* nr fl))
-                                (fs:v+ (fs:v- y (fs:v* u rl)) (fs:v* nr fl)) (fs:v- y (fs:v* u rl)))))
+    (if (and ear (= i (1- n)))
+      ;; последняя отбортовка с ушком: огибает угол шва и ложится на первую отбортовку
+      (progn
+        (setq out (append out (list x (fs:v+ x (fs:v* u rl)) (fs:v+ (fs:v+ x (fs:v* u rl)) (fs:v* nr fl))
+                                    (fs:v+ y (fs:v* nr fl))
+                                    (fs:v+ (fs:v+ y (fs:v* u ear)) (fs:v* nr (- fl 4.0)))
+                                    (fs:v+ (fs:v+ y (fs:v* u ear)) (fs:v* nr 4.0))
+                                    (fs:v+ (fs:v+ y (fs:v* u 1.5)) (fs:v* nr 1.5)))))
+        (setq bends (cons (list y (fs:v+ y (fs:v* nr fl))) bends))          ; гиб ушка
+        (setq holes (cons (list (fs:v+ (fs:v+ y (fs:v* u (/ ear 2.0))) (fs:v* nr (/ fl 2.0))) 2.5) holes)))
+      (setq out (append out (list x (fs:v+ x (fs:v* u rl)) (fs:v+ (fs:v+ x (fs:v* u rl)) (fs:v* nr fl))
+                                  (fs:v+ (fs:v- y (fs:v* u rl)) (fs:v* nr fl)) (fs:v- y (fs:v* u rl)))))
+    )
+    ;; ответное отверстие под ушко в первой отбортовке
+    (if (and ear (= i 0))
+      (setq holes (cons (list (fs:v+ (fs:v+ x (fs:v* u (/ ear 2.0))) (fs:v* nr (/ fl 2.0))) 2.5) holes)))
     (setq bends (cons (list x y) bends))                    ; гиб грань-отбортовка
     (if (< i (1- n)) (setq bends (cons (list '(0.0 0.0) y) bends)))   ; гиб между гранями
-    ;; отверстия крепления в отбортовке
-    (if (= hole 1)
-      (foreach tt (if (> ln 250.0) '(0.25 0.75) '(0.5))
-        (setq holes (cons (list (fs:v+ (fs:v+ x (fs:v* u (* tt ln))) (fs:v* nr (/ fl 2.0))) 2.5) holes))
-      )
+    ;; крепление в отбортовке
+    (setq d3 (fs:v- (nth (rem (1+ i) n) b3) (nth i b3)) upk (/ (cadr d3) (fs:len d3)))
+    (cond
+      ((and (= hang 1) (> (abs upk) 0.3))        ; боковая отбортовка: пазы-ключи, паз смотрит вверх
+       (foreach tt (if (> ln 250.0) '(0.3 0.7) '(0.5))
+         (setq kh (cons (fs:keyhole (fs:v+ (fs:v+ x (fs:v* u (* tt ln))) (fs:v* nr (/ fl 2.0)))
+                                    (if (> upk 0) u (fs:v* u -1.0)) 4.5 2.75 12.0) kh))))
+      ((= hang 2)
+       (foreach tt (if (> ln 250.0) '(0.3 0.7) '(0.5))
+         (setq holes (cons (list (fs:v+ (fs:v+ x (fs:v* u (* tt ln))) (fs:v* nr (/ fl 2.0))) 2.5) holes))))
     )
     ;; перфорация грани (O x y)
     (if (or (= perf 1) (and (= perf 2) (= (rem i 2) 0)))
@@ -285,6 +319,21 @@
     (setq i (1+ i))
   )
   (setq out (append out (list (nth n rays))))
+  ;; лапка внахлёст на шве (без сварки): заходит под первую грань
+  (if (= lock 1)
+    (progn
+      (setq e (fs:unit (nth n rays)) nt (list (- (cadr e)) (car e)) w 15.0
+            s0 (max (* 0.2 (fs:len (nth n rays))) (/ (* 1.8 w) (max 0.05 (fs:tan gap))))
+            s1 (- (fs:len (nth n rays)) (if ear (+ fl 25.0) 25.0)))
+      (if (> (- s1 s0) 40.0)
+        (progn
+          (setq out (append out (list (fs:v* e s1) (fs:v+ (fs:v* e (- s1 w)) (fs:v* nt w))
+                                      (fs:v+ (fs:v* e (+ s0 w)) (fs:v* nt w)) (fs:v* e s0))))
+          (setq bends (cons (list (fs:v* e s0) (fs:v* e s1)) bends))
+        )
+      )
+    )
+  )
   ;; углы гиба: между гранями и грань-отбортовка
   (setq dih nil i 0)
   (while (< i (1- n)) (setq dih (cons (* (/ 180.0 pi) (fs:ang (nth i fn) (nth (1+ i) fn))) dih) i (1+ i)))
@@ -294,14 +343,16 @@
     (setq flb (cons (* (/ 180.0 pi) (fs:ang (nth i fn) (fs:v* bk -1.0))) flb) i (1+ i))
   )
   (setq lab (fs:v* (fs:v+ (nth 1 rays) (nth 2 rays)) 0.33))
-  (list out bends holes lab (list (apply 'min dih) (apply 'max dih) (apply 'min flb) (apply 'max flb)))
+  (list out bends holes lab (list (apply 'min dih) (apply 'max dih) (apply 'min flb) (apply 'max flb)) kh)
 )
+(defun fs:tan (x) (/ (sin x) (cos x)))
 ;; повернуть деталь на угол a
 (defun fs:net-rot (nt a)
   (list (mapcar '(lambda (p) (fs:rot p a)) (nth 0 nt))
         (mapcar '(lambda (l) (list (fs:rot (car l) a) (fs:rot (cadr l) a))) (nth 1 nt))
         (mapcar '(lambda (h) (list (fs:rot (car h) a) (cadr h))) (nth 2 nt))
-        (fs:rot (nth 3 nt) a) (nth 4 nt))
+        (fs:rot (nth 3 nt) a) (nth 4 nt)
+        (mapcar '(lambda (k) (mapcar '(lambda (p) (fs:rot p a)) k)) (nth 5 nt)))
 )
 (defun fs:bbox (pts)
   (list (apply 'min (mapcar 'car pts)) (apply 'min (mapcar 'cadr pts))
@@ -322,7 +373,8 @@
         (mapcar '(lambda (h) (list (fs:v- (car h) (list (nth 0 bb) (nth 1 bb))) (cadr h))) (nth 2 r))
         (fs:v- (nth 3 r) (list (nth 0 bb) (nth 1 bb)))
         (nth 4 r)
-        (list (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb))))
+        (list (- (nth 2 bb) (nth 0 bb)) (- (nth 3 bb) (nth 1 bb)))
+        (mapcar '(lambda (k) (fs:move k (list (- (nth 0 bb)) (- (nth 1 bb))))) (nth 5 r)))
 )
 ;; начертить деталь в точке org
 (defun fs:draw-part (nt org name bmode br dsh / o n i a b ln lim m u)
@@ -345,6 +397,9 @@
       (fs:line (fs:v+ (car l) org) (fs:v+ (cadr l) org) "GIB"))
   )
   (foreach h (nth 2 nt) (fs:circle (fs:v+ (car h) org) (cadr h) "REZ"))
+  (foreach k (nth 6 nt)                                ; пазы-ключи
+    (setq k (fs:move k org) n (length k) i 0)
+    (while (< i n) (fs:line (nth i k) (nth (rem (1+ i) n) k) "REZ") (setq i (1+ i))))
   (fs:text (fs:v+ (nth 3 nt) org) 25.0 name "NOMER")
 )
 
@@ -352,7 +407,7 @@
 (setq *fs-names* '("Квадрат" "Треугольник" "Ромб" "Шестигранник" "Прямоугольник (вершина смещена)" "Ромб вытянутый"))
 (setq *fs-omodes* '("по центру" "волна" "волна по диагонали" "случайно" "шахматка"))
 
-(defun fs:main (/ ww hh th shape msz dep joint omode ofs dmode fl perf pitch hd pm hole bmode br dsh
+(defun fs:main (/ ww hh th shape msz dep joint omode ofs dmode fl perf pitch hd pm hang lock bmode br dsh
                   sw sl mods types key nt tp idx parts cnt x y rowh sx sy sheet k p name n m b a3 sgn
                   base apex oldecho dflt info)
   (princ "\n=== ФАСАД: кассеты-пирамиды из листа ===")
@@ -380,14 +435,15 @@
           dsh (fs:num "Прорез между петельками, мм" 10.0))
     (setq br (fs:num "Перемычка на контуре (держит деталь в листе), мм" 2.0) dsh 10.0)
   )
+  (setq lock (fs:int "Шов модуля: 1-без сварки (лапка внахлёст + ушко на винт/заклёпку) 2-под сварку" 1 6 1 2))
+  (setq hang (fs:int "Крепление: 1-навесное, пазы-ключи (просто надеть на винты/штифты) 2-отверстия 0-нет" 1 4 0 2))
   (setq dflt (fs:int "Остальные параметры по умолчанию? 1-да, 0-нет" 1 4 0 1))
-  (setq joint 10.0 ofs 0.35 fl 30.0 pm 15.0 hole 1 sw 1500.0 sl 3000.0)
+  (setq joint 10.0 ofs 0.35 fl 30.0 pm 15.0 sw 1500.0 sl 3000.0)
   (if (= dflt 0)
     (setq joint (fs:num "Шов между модулями, мм" joint)
           ofs   (fs:num "Сила смещения вершины (0.1-0.6)" ofs)
           fl    (fs:num "Отбортовка назад, мм" fl)
           pm    (fs:num "Поле без перфорации у края грани, мм" pm)
-          hole  (fs:int "Отверстия крепления в отбортовке? 1-да 0-нет" hole 4 0 1)
           sw    (fs:num "Лист: ширина, мм" sw)
           sl    (fs:num "Лист: длина, мм" sl))
   )
@@ -411,7 +467,7 @@
         (if (setq tp (assoc key types))
           (setq types (subst (list key (cadr tp) (1+ (caddr tp)) (nth 3 tp)) tp types))
           (setq types (cons (list key (1+ (length types)) 1
-                                  (fs:net-fit (fs:net base apex (* sgn dep) fl 1.0 perf pitch hd pm hole))) types)))
+                                  (fs:net-fit (fs:net base apex (* sgn dep) fl 1.0 perf pitch hd pm hang lock))) types)))
         (setq tp (assoc key types))
         ;; --- 3D модуль: грани и отбортовка (3D-грани)
         (setq a3 (list (car apex) (cadr apex) (* sgn dep)) n (length base) k 0)
